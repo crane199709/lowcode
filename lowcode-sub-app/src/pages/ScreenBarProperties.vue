@@ -18,6 +18,7 @@ import {
   type Aggregation,
   type BarConfig,
   type BindingDataset,
+  type DateGrouping,
   type WidgetQuery,
 } from './widget-query'
 import { errorTip } from './data-source'
@@ -94,6 +95,12 @@ function aggregate(index: number, value: Aggregation) {
     c.query.sorts = []
   })
 }
+function dateGrouping(index: number, value: DateGrouping | '') {
+  update((c) => {
+    if (value) c.query.dimensions[index]!.dateGrouping = value
+    else delete c.query.dimensions[index]!.dateGrouping
+  })
+}
 function addFilter() {
   if (!selected.value?.fields[0]) {
     return
@@ -165,14 +172,19 @@ onMounted(load)
       @dragover.prevent
       @drop.prevent="drop($event, 'dimensions')"
     >
-      <span v-if="!config.query.dimensions.length">拖入维度</span
-      ><el-tag
-        v-for="(d, i) in config.query.dimensions"
-        :key="i"
-        closable
-        @close="remove(i, 'dimensions')"
-        >{{ label(d.field) }}</el-tag
-      >
+      <span v-if="!config.query.dimensions.length">拖入维度</span>
+      <div v-for="(d, i) in config.query.dimensions" :key="i" class="measure">
+        <el-tag closable @close="remove(i, 'dimensions')">{{ label(d.field) }}</el-tag>
+        <el-select
+          v-if="selected.fields.find((field) => field.name === d.field)?.date"
+          :model-value="d.dateGrouping ?? ''"
+          :aria-label="`维度${i + 1}日期分组`"
+          @update:model-value="dateGrouping(i, $event)"
+        >
+          <el-option label="原值" value="" /><el-option label="按日" value="DAY" />
+          <el-option label="按月" value="MONTH" /><el-option label="按年" value="YEAR" />
+        </el-select>
+      </div>
     </div>
     <div
       class="drop-zone"

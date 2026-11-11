@@ -1,7 +1,8 @@
 import type { DatasetField } from './dataset'
 export type Aggregation = 'SUM' | 'AVG' | 'COUNT' | 'COUNT_DISTINCT' | 'MAX' | 'MIN'
+export type DateGrouping = 'DAY' | 'MONTH' | 'YEAR'
 export interface WidgetQuery {
-  dimensions: { field: string }[]
+  dimensions: { field: string; dateGrouping?: DateGrouping }[]
   measures: { field: string; aggregation: Aggregation }[]
   filters: {
     field: string
