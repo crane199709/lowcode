@@ -92,7 +92,12 @@ public class DatasetQueryService {
             filters.add(new Filter(filter.field(), filter.operator(), values));
         }
         var validated = new Query(query.dimensions(), query.measures(), filters, query.sorts(), query.topN());
-        var result = sources.aggregate(dataset.dataSourceId(), dataset.sql(), validated);
+        var result = dataset.jsonPath() == null
+                ? sources.aggregate(dataset.dataSourceId(), dataset.sql(), validated)
+                : ApiDatasetAggregator.aggregate(
+                        sources.previewDataset(dataset.dataSourceId(), dataset.sql(), dataset.jsonPath()),
+                        dataset.fields(),
+                        validated);
         return new Result(columns, result.rows(), result.truncated(), result.maxRows());
     }
 

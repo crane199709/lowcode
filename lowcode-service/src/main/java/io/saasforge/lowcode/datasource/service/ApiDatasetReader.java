@@ -44,6 +44,7 @@ class ApiDatasetReader {
         try {
             document = json.readerFor(Object.class)
                     .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
                     .readValue(body);
         } catch (JacksonException e) {
             throw new ForgeException(DatasetErrorCode.API_JSON_INVALID);
