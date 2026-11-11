@@ -4,6 +4,7 @@ import io.saasforge.lowcode.datasource.config.ApiProperties;
 import io.saasforge.lowcode.datasource.config.SqlDatasetProperties;
 import io.saasforge.lowcode.datasource.model.ColumnResponse;
 import io.saasforge.lowcode.datasource.model.ConnectionSettings;
+import io.saasforge.lowcode.datasource.model.DataSourceType;
 import io.saasforge.lowcode.datasource.model.DatasetPreviewResponse;
 import io.saasforge.lowcode.datasource.model.FieldResponse;
 import io.saasforge.lowcode.datasource.model.FieldRole;
@@ -97,12 +98,31 @@ class ExternalClickHouseConnector {
     }
 
     DatasetPreviewResponse preview(InetAddress address, ConnectionSettings settings, String sql) {
+        return query(address, settings, sql, Map.of());
+    }
+
+    DatasetPreviewResponse aggregate(
+            InetAddress address,
+            ConnectionSettings settings,
+            String sql,
+            DatasetQueryService.Query query,
+            List<FieldResponse> fields) {
+        var prepared = SqlAggregation.build(DataSourceType.CLICKHOUSE, sql, query, fields);
+        Map<String, String> parameters = new java.util.HashMap<>();
+        for (int i = 0; i < prepared.values().size(); i++) {
+            parameters.put("param_p" + i, prepared.values().get(i).toString());
+        }
+        return query(address, settings, prepared.sql(), parameters);
+    }
+
+    private DatasetPreviewResponse query(
+            InetAddress address, ConnectionSettings settings, String sql, Map<String, String> parameters) {
         var result = execute(
                 address,
                 settings,
                 "SELECT * FROM (\n" + sql + "\n) AS lc_preview LIMIT " + (sqlProperties.maxRows() + 1)
                         + " FORMAT JSONCompact",
-                Map.of(),
+                parameters,
                 sqlProperties.timeoutSeconds(),
                 true);
         if (!result.path("meta").isArray() || result.path("meta").isEmpty()) {

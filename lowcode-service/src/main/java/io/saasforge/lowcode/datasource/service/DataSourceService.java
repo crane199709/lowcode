@@ -13,6 +13,7 @@ import io.saasforge.lowcode.datasource.model.ConnectionSettings;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
 import io.saasforge.lowcode.datasource.model.DatasetPreviewResponse;
 import io.saasforge.lowcode.datasource.model.DatasetSourceResponse;
+import io.saasforge.lowcode.datasource.model.FieldResponse;
 import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.web.PageQuery;
@@ -184,15 +185,17 @@ public class DataSourceService {
         return apiDatasets.preview(apiConnector.fetch(target.settings(), target.addresses()), path);
     }
 
-    DatasetPreviewResponse aggregate(UUID id, String sql, DatasetQueryService.Query query) {
+    DatasetPreviewResponse aggregate(UUID id, String sql, DatasetQueryService.Query query, List<FieldResponse> fields) {
         DataSource saved = get(id);
         DataSourceType type = DataSourceType.valueOf(saved.getType());
-        if (type != DataSourceType.POSTGRESQL) {
+        if (type == DataSourceType.API) {
             throw new ForgeException(DatasetErrorCode.SOURCE_NOT_SUPPORTED);
         }
         String normalized = SqlQueryGuard.check(sql, type);
         ConnectionSettings settings = metadataSettings(saved, type);
-        return connector.aggregate(type, metadataAddress(settings), settings, normalized, query);
+        return type == DataSourceType.CLICKHOUSE
+                ? clickHouse.aggregate(metadataAddress(settings), settings, normalized, query, fields)
+                : connector.aggregate(type, metadataAddress(settings), settings, normalized, query, fields);
     }
 
     public DatasetPreviewResponse previewSql(UUID id, String sql) {
