@@ -61,7 +61,8 @@ final class SharedContainers {
                 "ON_ERROR_STOP=1",
                 "-c",
                 "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '" + EXTERNAL_USER + "') THEN"
-                        + " CREATE ROLE " + EXTERNAL_USER + " LOGIN PASSWORD '" + EXTERNAL_PASSWORD + "'; END IF; END $$;"
+                        + " CREATE ROLE " + EXTERNAL_USER + " LOGIN PASSWORD '" + EXTERNAL_PASSWORD
+                        + "'; END IF; END $$;"
                         + " GRANT CONNECT ON DATABASE forge TO " + EXTERNAL_USER + ";");
         return new ExternalDatabase(
                 container.getHost(), container.getMappedPort(5432), "forge", EXTERNAL_USER, EXTERNAL_PASSWORD);
@@ -148,9 +149,8 @@ final class SharedContainers {
     }
 
     private static final class MysqlHolder {
-        static final MySQLContainer CONTAINER = new MySQLContainer("mysql:8.4")
-                .withUsername(EXTERNAL_USER)
-                .withPassword(EXTERNAL_PASSWORD);
+        static final MySQLContainer CONTAINER =
+                new MySQLContainer("mysql:8.4").withUsername(EXTERNAL_USER).withPassword(EXTERNAL_PASSWORD);
 
         static {
             CONTAINER.start();

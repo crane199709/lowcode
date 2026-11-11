@@ -16,7 +16,10 @@ public record DataSourceSecurityProperties(List<String> blockedNetworks, String 
         if (blockedNetworks == null || blockedNetworks.stream().allMatch(String::isBlank)) {
             throw new IllegalStateException("lowcode.datasource.blocked-networks must list at least one CIDR");
         }
-        blockedNetworks = blockedNetworks.stream().map(String::trim).filter(cidr -> !cidr.isEmpty()).toList();
+        blockedNetworks = blockedNetworks.stream()
+                .map(String::trim)
+                .filter(cidr -> !cidr.isEmpty())
+                .toList();
         if (encryptionKey == null || encryptionKey.isBlank()) {
             throw new IllegalStateException("lowcode.datasource.encryption-key is required");
         }

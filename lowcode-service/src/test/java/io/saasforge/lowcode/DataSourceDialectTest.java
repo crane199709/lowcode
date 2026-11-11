@@ -85,7 +85,9 @@ class DataSourceDialectTest {
     void registersEachTypeWithoutEchoingThePassword(String type) {
         Map<?, ?> created = exchange(HttpMethod.POST, "/data-sources", request(type));
         assertThat(created.get("httpStatus")).isEqualTo(201);
-        assertThat((Map<Object, Object>) created.get("data")).containsEntry("type", type).doesNotContainKey("password");
+        assertThat((Map<Object, Object>) created.get("data"))
+                .containsEntry("type", type)
+                .doesNotContainKey("password");
         assertThat(created.toString()).doesNotContain(external(type).password());
     }
 
@@ -93,7 +95,9 @@ class DataSourceDialectTest {
     void mysqlConnectionDoesNotUseTheServiceClientKeyStore(@TempDir Path directory) {
         String previous = System.getProperty("javax.net.ssl.keyStore");
         // 不存在的证书文件使驱动只要尝试读取服务的客户端证书就连接失败；租户的密码连接不应受它影响。
-        System.setProperty("javax.net.ssl.keyStore", directory.resolve("service-client.p12").toString());
+        System.setProperty(
+                "javax.net.ssl.keyStore",
+                directory.resolve("service-client.p12").toString());
         try {
             var body = request("MYSQL");
             body.put("params", Map.of("sslMode", "REQUIRED"));

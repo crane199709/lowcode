@@ -76,7 +76,14 @@ async function mockList(page: Page, data: typeof items) {
           code: 'ok',
           httpStatus: 200,
           data,
-          meta: { page: { number: 1, size: 20, totalElements: data.length, totalPages: data.length ? 1 : 0 } },
+          meta: {
+            page: {
+              number: 1,
+              size: 20,
+              totalElements: data.length,
+              totalPages: data.length ? 1 : 0,
+            },
+          },
           traceId: 'visual',
         },
       }),
@@ -134,7 +141,10 @@ for (const [label, width, height] of viewports) {
     test('编辑 SQL Server 数据源', async ({ page }) => {
       await mockList(page, items)
       await open(page, 'datasources', manage)
-      await page.getByRole('row', { name: /财务总账/ }).getByRole('button', { name: '编辑' }).click()
+      await page
+        .getByRole('row', { name: /财务总账/ })
+        .getByRole('button', { name: '编辑' })
+        .click()
       const drawer = page.getByRole('dialog', { name: '编辑数据源' })
       await expect(drawer.getByLabel('库名')).toHaveValue('GeneralLedger')
       await expect(drawer.getByText('信任服务器证书', { exact: false })).toBeVisible()
@@ -144,7 +154,10 @@ for (const [label, width, height] of viewports) {
     test('编辑 Oracle 数据源时库名显示为服务名', async ({ page }) => {
       await mockList(page, items)
       await open(page, 'datasources', manage)
-      await page.getByRole('row', { name: /ERP 生产计划/ }).getByRole('button', { name: '编辑' }).click()
+      await page
+        .getByRole('row', { name: /ERP 生产计划/ })
+        .getByRole('button', { name: '编辑' })
+        .click()
       const drawer = page.getByRole('dialog', { name: '编辑数据源' })
       await expect(drawer.getByLabel('服务名')).toHaveValue('ERPPROD.example.com')
       await expect(drawer.getByText('SSL')).toHaveCount(0)
@@ -193,7 +206,10 @@ for (const [label, width, height] of viewports) {
       await drawer.getByRole('button', { name: '保存', exact: true }).click()
       await expect(drawer).not.toBeVisible()
       expect(requests).toHaveLength(5)
-      expect(requests.at(-1)).toMatchObject({ method: 'PUT', body: { type: 'ORACLE', port: 11521 } })
+      expect(requests.at(-1)).toMatchObject({
+        method: 'PUT',
+        body: { type: 'ORACLE', port: 11521 },
+      })
       expect((requests.at(-1)!.body as { params: unknown }).params).toEqual({})
     })
 
@@ -211,7 +227,10 @@ for (const [label, width, height] of viewports) {
         },
       )
       await open(page, 'datasources', manage)
-      await page.getByRole('row', { name: /财务总账/ }).getByRole('button', { name: '编辑' }).click()
+      await page
+        .getByRole('row', { name: /财务总账/ })
+        .getByRole('button', { name: '编辑' })
+        .click()
       const drawer = page.getByRole('dialog', { name: '编辑数据源' })
       const started = page.waitForRequest((request) => request.url().endsWith('/connection-test'))
       await drawer.getByRole('button', { name: '测试连接' }).click()

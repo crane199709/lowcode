@@ -123,7 +123,8 @@ class TenantIsolationTest {
                 .isEqualTo(200);
         assertThat(status(TENANT_A, HttpMethod.DELETE, "/screens/" + screenA, null))
                 .isEqualTo(200);
-        assertThat(status(TENANT_A, HttpMethod.GET, "/screens/" + screenA, null)).isEqualTo(404);
+        assertThat(status(TENANT_A, HttpMethod.GET, "/screens/" + screenA, null))
+                .isEqualTo(404);
     }
 
     @Test
@@ -203,8 +204,9 @@ class TenantIsolationTest {
         var carried = new AtomicReference<Future<List<UUID>>>();
         CurrentTenant.run(
                 TENANT_A,
-                () -> carried.set(executor.submit(() ->
-                        screenService.list(FIRST_PAGE).stream().map(Screen::getId).toList())));
+                () -> carried.set(executor.submit(() -> screenService.list(FIRST_PAGE).stream()
+                        .map(Screen::getId)
+                        .toList())));
         assertThat(carried.get().get()).contains(screenA);
 
         // 定时任务等没有提交方上下文的线程与此相同：未声明租户时显式失败，而不是读到空结果或跨租户数据
@@ -243,8 +245,8 @@ class TenantIsolationTest {
             delete.setObject(1, screenOfB);
             assertThat(delete.executeUpdate()).isZero();
         }
-        try (PreparedStatement insert = connection.prepareStatement(
-                "INSERT INTO screens (id, tenant_id, name) VALUES (?, ?, '伪造')")) {
+        try (PreparedStatement insert =
+                connection.prepareStatement("INSERT INTO screens (id, tenant_id, name) VALUES (?, ?, '伪造')")) {
             insert.setObject(1, UUID.randomUUID());
             insert.setObject(2, TENANT_B);
             assertThatThrownBy(insert::executeUpdate)
@@ -282,8 +284,7 @@ class TenantIsolationTest {
     }
 
     private UUID createScreen(UUID tenantId, String name) throws Exception {
-        Map<?, ?> created =
-                (Map<?, ?>) data(call(tenantId, HttpMethod.POST, "/screens", Map.of("name", name)));
+        Map<?, ?> created = (Map<?, ?>) data(call(tenantId, HttpMethod.POST, "/screens", Map.of("name", name)));
         return UUID.fromString((String) created.get("id"));
     }
 

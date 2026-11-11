@@ -79,7 +79,9 @@ class OracleDataSourceTest {
     void registersWithoutEchoingThePassword() {
         Map<?, ?> created = exchange(HttpMethod.POST, "/data-sources", request());
         assertThat(created.get("httpStatus")).isEqualTo(201);
-        assertThat((Map<Object, Object>) created.get("data")).containsEntry("type", "ORACLE").doesNotContainKey("password");
+        assertThat((Map<Object, Object>) created.get("data"))
+                .containsEntry("type", "ORACLE")
+                .doesNotContainKey("password");
         assertThat(created.toString()).doesNotContain(external.password());
     }
 
@@ -89,7 +91,8 @@ class OracleDataSourceTest {
     void rejectsServiceNamesThatCouldRewriteTheDescriptor(String serviceName) {
         var body = request();
         body.put("database", serviceName);
-        assertThat(exchange(HttpMethod.POST, "/data-sources", body).get("code")).isEqualTo("datasource.databaseInvalid");
+        assertThat(exchange(HttpMethod.POST, "/data-sources", body).get("code"))
+                .isEqualTo("datasource.databaseInvalid");
         assertThat(test(body)).isEqualTo("datasource.databaseInvalid");
     }
 

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本工程是 SaaS Forge 平台的 Sub-App `lowcode`（平台版本 0.1.0）：构建产物 `dist/remoteEntry.js` 由租户 Shell 经 Module Federation 加载，路由挂在 `/apps/lowcode` 下。
+本工程是 SaaS Forge 平台的 Sub-App `lowcode`（平台版本 0.2.0-SNAPSHOT）：构建产物 `dist/remoteEntry.js` 由租户 Shell 经 Module Federation 加载，路由挂在 `/apps/lowcode` 下。
 
 ## 规则摘要
 
@@ -13,6 +13,8 @@
 ## 命令
 
 - `pnpm dev`：独立开发宿主 `http://localhost:5176`，经代理访问本地网关
+- `pnpm format`：按平台统一的 Prettier 规则格式化
+- `pnpm format:check`：检查代码格式，提交前须通过
 - `pnpm lint`：隔离约定检查
 - `pnpm lint:style`：样式 token 检查
 - `pnpm typecheck`：类型检查

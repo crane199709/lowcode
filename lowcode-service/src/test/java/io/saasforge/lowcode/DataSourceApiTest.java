@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 import io.saasforge.lowcode.outbox.mapper.AuditOutboxMapper;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -93,7 +92,8 @@ class DataSourceApiTest {
 
     @Test
     void connectionTestSucceedsOrReturnsAReadableReason() throws Exception {
-        assertThat(exchange(HttpMethod.POST, "/data-sources/connection-test", request("测试")).get("code"))
+        assertThat(exchange(HttpMethod.POST, "/data-sources/connection-test", request("测试"))
+                        .get("code"))
                 .isEqualTo("ok");
 
         var wrongPassword = request("测试");
@@ -104,7 +104,8 @@ class DataSourceApiTest {
 
         var missingDatabase = request("测试");
         missingDatabase.put("database", "no_such_db");
-        assertThat(exchange(HttpMethod.POST, "/data-sources/connection-test", missingDatabase).get("code"))
+        assertThat(exchange(HttpMethod.POST, "/data-sources/connection-test", missingDatabase)
+                        .get("code"))
                 .isEqualTo("datasource.databaseNotFound");
 
         // 关闭的端口与无法解析的主机得到同一个原因，不暴露端口是否开放
@@ -121,12 +122,14 @@ class DataSourceApiTest {
             responses.add(failed);
         }
         // errorMessage 同样不能带解析出的地址或驱动的 SQLState
-        assertThat(responses.get(0).get("errorMessage")).isEqualTo(responses.get(1).get("errorMessage"));
+        assertThat(responses.get(0).get("errorMessage"))
+                .isEqualTo(responses.get(1).get("errorMessage"));
     }
 
     @Test
     void savedPasswordIsNeverSentToAChangedServer() throws Exception {
-        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("防外泄")).get("data"))
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("防外泄"))
+                        .get("data"))
                 .get("id");
         // 留空密码却改了主机、端口或账号：可能是把已保存的密码引向自己控制的服务器，必须重新填写密码
         for (var change : List.<Map<String, Object>>of(
@@ -134,7 +137,8 @@ class DataSourceApiTest {
             var body = request("防外泄");
             body.put("password", "");
             body.putAll(change);
-            assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", body).get("code"))
+            assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", body)
+                            .get("code"))
                     .as(change.toString())
                     .isEqualTo("datasource.passwordRequired");
             assertThat(exchange(HttpMethod.PUT, "/data-sources/" + id, body).get("code"))
@@ -145,7 +149,8 @@ class DataSourceApiTest {
 
     @Test
     void hostInBlockedNetworkIsRejectedForSaveAndConnectionTest() throws Exception {
-        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("待修改")).get("data"))
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("待修改"))
+                        .get("data"))
                 .get("id");
         // 元数据地址、私有网段、IPv6 私有网段与「任意地址」（多数系统上连到本机）
         for (String host : List.of("169.254.169.254", "10.1.2.3", "fd00::1", "0.0.0.0")) {
@@ -160,7 +165,9 @@ class DataSourceApiTest {
                 assertThat(call.get("code")).as(host).isEqualTo("datasource.hostBlocked");
             }
         }
-        assertThat(((Map<?, ?>) exchange(HttpMethod.GET, "/data-sources/" + id, null).get("data")).get("host"))
+        assertThat(((Map<?, ?>) exchange(HttpMethod.GET, "/data-sources/" + id, null)
+                                .get("data"))
+                        .get("host"))
                 .isEqualTo(external.host());
     }
 
@@ -193,7 +200,8 @@ class DataSourceApiTest {
         assertThat(exchange(HttpMethod.POST, "/data-sources", noPassword).get("code"))
                 .isEqualTo("datasource.passwordRequired");
 
-        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("原名")).get("data"))
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("原名"))
+                        .get("data"))
                 .get("id");
         var renamed = request("新名");
         renamed.put("password", "");
@@ -201,28 +209,33 @@ class DataSourceApiTest {
         assertThat(((Map<?, ?>) updated.get("data")).get("name")).isEqualTo("新名");
 
         // 留空的密码沿用已保存的密码，真实连接仍能成功
-        assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", renamed).get("code"))
+        assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", renamed)
+                        .get("code"))
                 .isEqualTo("ok");
         var wrongPassword = request("新名");
         wrongPassword.put("password", "wrong");
         exchange(HttpMethod.PUT, "/data-sources/" + id, wrongPassword);
-        assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", renamed).get("code"))
+        assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", renamed)
+                        .get("code"))
                 .isEqualTo("datasource.authFailed");
     }
 
     @Test
     void viewPermissionCanOnlyReadAndManagePermissionIsRequiredToChange() throws Exception {
-        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("只读可见")).get("data"))
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("只读可见"))
+                        .get("data"))
                 .get("id");
         TestGrants.publish(redisTemplate, TestTokens.TENANT_ID, VIEWER, List.of("datasource:view"));
         TestGrants.publish(redisTemplate, TestTokens.TENANT_ID, OUTSIDER, List.of("screen:view"));
         String viewer = TestTokens.forMembership(TestTokens.TENANT_ID, VIEWER);
         String outsider = TestTokens.forMembership(TestTokens.TENANT_ID, OUTSIDER);
 
-        assertThat(exchange(HttpMethod.GET, "/data-sources", null, viewer).get("httpStatus")).isEqualTo(200);
+        assertThat(exchange(HttpMethod.GET, "/data-sources", null, viewer).get("httpStatus"))
+                .isEqualTo(200);
         assertThat(exchange(HttpMethod.GET, "/data-sources/" + id, null, viewer).get("httpStatus"))
                 .isEqualTo(200);
-        assertThat(exchange(HttpMethod.GET, "/data-sources", null, outsider).get("httpStatus")).isEqualTo(403);
+        assertThat(exchange(HttpMethod.GET, "/data-sources", null, outsider).get("httpStatus"))
+                .isEqualTo(403);
         for (var call : List.of(
                 exchange(HttpMethod.POST, "/data-sources", request("越权"), viewer),
                 exchange(HttpMethod.PUT, "/data-sources/" + id, request("越权"), viewer),
@@ -236,25 +249,29 @@ class DataSourceApiTest {
 
     @Test
     void dataSourceBelongsToItsTenantAndDeleteIsLogical() throws Exception {
-        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("租户内")).get("data"))
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("租户内"))
+                        .get("data"))
                 .get("id");
-        TestGrants.publish(
-                redisTemplate, OTHER_TENANT, MANAGER, List.of("datasource:view", "datasource:manage"));
+        TestGrants.publish(redisTemplate, OTHER_TENANT, MANAGER, List.of("datasource:view", "datasource:manage"));
         String other = TestTokens.forTenant(OTHER_TENANT);
 
         assertThat(exchange(HttpMethod.GET, "/data-sources/" + id, null, other).get("code"))
                 .isEqualTo("datasource.notFound");
-        assertThat(exchange(HttpMethod.PUT, "/data-sources/" + id, request("改名"), other).get("code"))
+        assertThat(exchange(HttpMethod.PUT, "/data-sources/" + id, request("改名"), other)
+                        .get("code"))
                 .isEqualTo("datasource.notFound");
-        assertThat(exchange(HttpMethod.DELETE, "/data-sources/" + id, null, other).get("code"))
+        assertThat(exchange(HttpMethod.DELETE, "/data-sources/" + id, null, other)
+                        .get("code"))
                 .isEqualTo("datasource.notFound");
         assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", request("x"), other)
                         .get("code"))
                 .isEqualTo("datasource.notFound");
-        assertThat((List<?>) exchange(HttpMethod.GET, "/data-sources", null, other).get("data"))
+        assertThat((List<?>)
+                        exchange(HttpMethod.GET, "/data-sources", null, other).get("data"))
                 .isEmpty();
 
-        assertThat(exchange(HttpMethod.DELETE, "/data-sources/" + id, null).get("httpStatus")).isEqualTo(200);
+        assertThat(exchange(HttpMethod.DELETE, "/data-sources/" + id, null).get("httpStatus"))
+                .isEqualTo(200);
         assertThat(exchange(HttpMethod.GET, "/data-sources/" + id, null).get("code"))
                 .isEqualTo("datasource.notFound");
         assertThat((List<?>) exchange(HttpMethod.GET, "/data-sources", null).get("data"))
@@ -264,7 +281,8 @@ class DataSourceApiTest {
 
     @Test
     void createUpdateAndDeleteWriteAuditEvents() throws Exception {
-        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("审计")).get("data"))
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("审计"))
+                        .get("data"))
                 .get("id");
         exchange(HttpMethod.PUT, "/data-sources/" + id, request("审计改名"));
         exchange(HttpMethod.DELETE, "/data-sources/" + id, null);

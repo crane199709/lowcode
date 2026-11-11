@@ -3,7 +3,14 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElButton, ElMessageBox, ElTableColumn } from 'element-plus'
 import { useAccessControl, useTenantClient, type Page } from '@crane199709/sdk'
-import { ErrorAlert, ListPage, PageHeader, PageToolbar, formatDateTime, type ErrorTip } from '@crane199709/ui'
+import {
+  ErrorAlert,
+  ListPage,
+  PageHeader,
+  PageToolbar,
+  formatDateTime,
+  type ErrorTip,
+} from '@crane199709/ui'
 import DataSourceFormDrawer from './DataSourceFormDrawer.vue'
 import { errorTip, typeLabels, type DataSource } from './data-source'
 
@@ -87,26 +94,39 @@ onMounted(() => load())
     <PageHeader :title="t('title')" />
     <PageToolbar>
       <template #actions>
-        <el-button v-if="canManage" type="primary" @click="openForm(null)">{{ t('create') }}</el-button>
+        <el-button v-if="canManage" type="primary" @click="openForm(null)">{{
+          t('create')
+        }}</el-button>
       </template>
     </PageToolbar>
     <ErrorAlert v-if="error" :tip="error" />
     <ListPage :page="dataSources" :loading="busy" :empty-text="t('empty')" @page-change="load">
       <el-table-column :label="t('name')" min-width="180" show-overflow-tooltip prop="name" />
       <el-table-column :label="t('type')" width="110">
-        <template #default="{ row }">{{ typeLabels[row.type as DataSource['type']] ?? row.type }}</template>
+        <template #default="{ row }">{{
+          typeLabels[row.type as DataSource['type']] ?? row.type
+        }}</template>
       </el-table-column>
       <el-table-column :label="t('address')" min-width="240" show-overflow-tooltip>
         <template #default="{ row }">{{ row.host }}:{{ row.port }}/{{ row.database }}</template>
       </el-table-column>
-      <el-table-column :label="t('username')" min-width="120" show-overflow-tooltip prop="username" />
+      <el-table-column
+        :label="t('username')"
+        min-width="120"
+        show-overflow-tooltip
+        prop="username"
+      />
       <el-table-column :label="t('updatedAt')" width="180">
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
       <el-table-column v-if="canManage" :label="t('actions')" width="120" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openForm(row as DataSource)">{{ t('edit') }}</el-button>
-          <el-button link type="danger" @click="remove(row as DataSource)">{{ t('delete') }}</el-button>
+          <el-button link type="primary" @click="openForm(row as DataSource)">{{
+            t('edit')
+          }}</el-button>
+          <el-button link type="danger" @click="remove(row as DataSource)">{{
+            t('delete')
+          }}</el-button>
         </template>
       </el-table-column>
     </ListPage>

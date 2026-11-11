@@ -1,4 +1,4 @@
-<!-- 平台版本 0.1.0：由 forge-create-sub-app 复制，不在本工程修改；平台升级时按 CHANGELOG 重新复制。 -->
+<!-- 平台版本 0.2.0-SNAPSHOT：由 forge-create-sub-app 复制，不在本工程修改；平台升级时按 CHANGELOG 重新复制。 -->
 
 # Sub-App 页面规范
 
@@ -80,6 +80,10 @@
 
 - 间距的节奏：同组元素 `--forge-space-2`，控件组之间 `--forge-space-3`，区块之间 `--forge-space-4`。
 - 文字颜色用 Element Plus 的 `--el-text-color-*`，主内容 regular，辅助说明 secondary，只有区块标题加粗。
+
+## 代码格式
+
+格式交给 Prettier，规则与平台前端同一份：`.prettierrc.json` 随平台版本复制，不在本工程修改；`docs/standards/` 已列入 `.prettierignore`。提交前 `pnpm format:check` 必须通过，`pnpm format` 按规则改写。
 
 ## 走查清单
 

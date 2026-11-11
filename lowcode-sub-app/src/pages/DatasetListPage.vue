@@ -5,7 +5,10 @@ import type { Page } from '@crane199709/sdk'
 import { ListPage, PageHeader, PageToolbar } from '@crane199709/ui'
 
 // 定义与维护数据集由后续工单接入接口，当前只搭好列表原型与空状态。
-const empty: Page<never> = { items: [], page: { number: 1, size: 20, totalElements: 0, totalPages: 0 } }
+const empty: Page<never> = {
+  items: [],
+  page: { number: 1, size: 20, totalElements: 0, totalPages: 0 },
+}
 const { t } = useI18n({
   useScope: 'local',
   messages: {

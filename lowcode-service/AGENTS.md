@@ -18,9 +18,10 @@
 
 ## 命令
 
-工程未带 Maven Wrapper 时，把下文的 `./mvnw` 换成本机的 `mvn`。测试用 Testcontainers 启动 PostgreSQL 与 Redis，需要本机 Docker。
+测试用 Testcontainers 启动 PostgreSQL 与 Redis，需要本机 Docker。
 
-- `./mvnw verify`：编译并运行全部测试，含架构检查（`ArchitectureTest`）、表与字段注释检查和 SDK 表检查（`SchemaCommentTest`）。提交前必须通过。
+- `./mvnw verify`：编译并运行全部测试，含架构检查（`ArchitectureTest`）、表与字段注释检查和 SDK 表检查（`SchemaCommentTest`），最后做 Spotless 格式检查。提交前必须通过。
+- `./mvnw spotless:apply`：按父 POM 的规则格式化 Java、`pom.xml` 与 `src/{main,test}/resources` 下的 XML；XML 规则文件是根目录的 `spotless-xml.prefs`，不在本工程修改。
 - `./mvnw test -Dtest=<测试类>`：迭代时只跑受影响的测试。
 - `./mvnw verify -Pslow-dialects`：在默认 `verify` 之外，再运行标记为 `slow-dialect` 的测试（目前是 `OracleDataSourceTest`，Oracle 容器启动约一分钟以上）。改动 Oracle 连接或 `ExternalJdbcConnector` 时运行；单独运行用 `./mvnw test -Pslow-dialects -Dtest=OracleDataSourceTest`。
 - `./mvnw verify -DforkCount=N`：调整测试并行的 JVM 数，默认 2。

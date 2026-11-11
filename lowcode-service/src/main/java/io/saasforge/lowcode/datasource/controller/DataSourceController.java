@@ -126,7 +126,10 @@ class DataSourceController {
     record DataSourceRequest(
             @NotBlank @Size(max = 120) String name,
             @NotNull DataSourceType type,
-            @NotBlank @Size(max = 253) @Pattern(regexp = "[A-Za-z0-9.:\\-]+") String host,
+
+            @NotBlank @Size(max = 253) @Pattern(regexp = "[A-Za-z0-9.:\\-]+")
+            String host,
+
             @NotNull @Min(1) @Max(65535) Integer port,
             @NotBlank @Size(max = 128) String database,
             @NotBlank @Size(max = 128) String username,

@@ -101,7 +101,11 @@ let formRevision = 0
 const isEdit = computed(() => props.editing !== null)
 const databaseLabel = computed(() => (form.type === 'ORACLE' ? 'serviceName' : 'database'))
 
-const required = (field: string) => ({ required: true, message: t('required', { field: t(field) }), trigger: 'blur' })
+const required = (field: string) => ({
+  required: true,
+  message: t('required', { field: t(field) }),
+  trigger: 'blur',
+})
 const rules = computed<FormRules>(() => ({
   name: [required('name')],
   host: [required('host')],
@@ -197,7 +201,10 @@ async function save() {
   error.value = null
   try {
     if (isEdit.value) {
-      await client.api<DataSource>(`/lowcode/data-sources/${props.editing!.id}`, jsonBody('PUT', input()))
+      await client.api<DataSource>(
+        `/lowcode/data-sources/${props.editing!.id}`,
+        jsonBody('PUT', input()),
+      )
     } else {
       await client.api<DataSource>('/lowcode/data-sources', jsonBody('POST', input()))
     }
@@ -225,7 +232,12 @@ async function save() {
       </el-form-item>
       <el-form-item :label="t('type')">
         <el-select :model-value="form.type" @update:model-value="changeType">
-          <el-option v-for="type in dataSourceTypes" :key="type" :value="type" :label="typeLabels[type]" />
+          <el-option
+            v-for="type in dataSourceTypes"
+            :key="type"
+            :value="type"
+            :label="typeLabels[type]"
+          />
         </el-select>
       </el-form-item>
       <div class="address">
@@ -255,18 +267,32 @@ async function save() {
       <template v-if="form.type === 'POSTGRESQL'">
         <el-form-item :label="t('ssl')">
           <el-select v-model="form.params.sslmode">
-            <el-option v-for="[value, label] in postgresSslModes" :key="value" :value="value" :label="t(label)" />
+            <el-option
+              v-for="[value, label] in postgresSslModes"
+              :key="value"
+              :value="value"
+              :label="t(label)"
+            />
           </el-select>
         </el-form-item>
       </template>
       <template v-else-if="form.type === 'MYSQL'">
         <el-form-item :label="t('ssl')">
           <el-select v-model="form.params.sslMode">
-            <el-option v-for="[value, label] in mysqlSslModes" :key="value" :value="value" :label="t(label)" />
+            <el-option
+              v-for="[value, label] in mysqlSslModes"
+              :key="value"
+              :value="value"
+              :label="t(label)"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-checkbox v-model="form.params.allowPublicKeyRetrieval" true-value="true" false-value="false">
+          <el-checkbox
+            v-model="form.params.allowPublicKeyRetrieval"
+            true-value="true"
+            false-value="false"
+          >
             {{ t('allowPublicKeyRetrieval') }}
           </el-checkbox>
         </el-form-item>
@@ -279,7 +305,11 @@ async function save() {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-checkbox v-model="form.params.trustServerCertificate" true-value="true" false-value="false">
+          <el-checkbox
+            v-model="form.params.trustServerCertificate"
+            true-value="true"
+            false-value="false"
+          >
             {{ t('trustServerCertificate') }}
           </el-checkbox>
         </el-form-item>

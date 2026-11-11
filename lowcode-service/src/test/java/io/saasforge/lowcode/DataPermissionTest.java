@@ -93,11 +93,7 @@ class DataPermissionTest {
         seeded = true;
         for (UUID member : NAMES.keySet()) {
             String token = publish(member, DEPARTMENTS.get(member), List.of(DataScope.ALL));
-            assertThat(status(
-                            token,
-                            HttpMethod.POST,
-                            "/screens",
-                            Map.of("name", NAMES.get(member))))
+            assertThat(status(token, HttpMethod.POST, "/screens", Map.of("name", NAMES.get(member))))
                     .isEqualTo(201);
         }
     }
@@ -146,8 +142,7 @@ class DataPermissionTest {
     void creatingAScreenOutsideTheOwnDataScopeIsForbidden() throws Exception {
         // 新大屏归属创建者的主部门；没有部门的成员按部门范围创建的大屏自己也看不到，单对象校验直接拒绝。
         String byDepartment = publish(ERIN, SubjectAttributes.NONE, List.of(DataScope.DEPARTMENT));
-        Map<String, Object> denied =
-                exchange(byDepartment, HttpMethod.POST, "/screens", Map.of("name", "x"));
+        Map<String, Object> denied = exchange(byDepartment, HttpMethod.POST, "/screens", Map.of("name", "x"));
         assertThat(denied.get("code")).isEqualTo("auth.forbidden");
         assertThat(denied.get("httpStatus")).isEqualTo(403);
 
@@ -233,7 +228,9 @@ class DataPermissionTest {
     private void assertVisibleWith(String token, String description, String... names) throws Exception {
         var envelope = exchange(token, HttpMethod.GET, "/screens?size=100", null);
         List<Object> visible = ((List<?>) envelope.get("data"))
-                .stream().<Object>map(screen -> ((Map<?, ?>) screen).get("name")).toList();
+                .stream()
+                        .<Object>map(screen -> ((Map<?, ?>) screen).get("name"))
+                        .toList();
         assertThat(visible).as(description).containsExactlyInAnyOrder((Object[]) names);
         // 总数与列表经同一过滤，分页信息不泄露范围外的数据量。
         assertThat(((Map<?, ?>) ((Map<?, ?>) envelope.get("meta")).get("page")).get("totalElements"))

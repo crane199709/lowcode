@@ -105,7 +105,9 @@ class DataSourceRedirectTest {
                 .order(ByteOrder.LITTLE_ENDIAN);
         response.put(loginAck);
         // ENVCHANGE(0xe3), ROUTING(20), 新地址；旧值长度为零。DONE 结束登录响应。
-        response.put((byte) 0xe3).putShort((short) (1 + 2 + 5 + host.length + 2)).put((byte) 20);
+        response.put((byte) 0xe3)
+                .putShort((short) (1 + 2 + 5 + host.length + 2))
+                .put((byte) 20);
         response.putShort((short) (5 + host.length)).put((byte) 0).putShort((short) targetPort);
         response.putShort((short) targetHost.length()).put(host).putShort((short) 0);
         response.put((byte) 0xfd).putShort((short) 0).putShort((short) 0).putLong(0);
@@ -127,7 +129,10 @@ class DataSourceRedirectTest {
                 .getBytes(StandardCharsets.US_ASCII);
         var packet = ByteBuffer.allocate(address.length + 10);
         // TNS REDIRECT(type=5)：8 字节头部，2 字节描述符长度，随后是新连接描述符。
-        packet.putShort((short) packet.capacity()).putShort((short) 0).put((byte) 5).put((byte) 0);
+        packet.putShort((short) packet.capacity())
+                .putShort((short) 0)
+                .put((byte) 5)
+                .put((byte) 0);
         packet.putShort((short) 0).putShort((short) address.length).put(address);
         socket.getOutputStream().write(packet.array());
         socket.getOutputStream().flush();

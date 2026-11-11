@@ -21,7 +21,8 @@ class SecretCipher {
     private final SecureRandom random = new SecureRandom();
 
     SecretCipher(DataSourceSecurityProperties properties) {
-        this.key = new SecretKeySpec(Base64.getDecoder().decode(properties.encryptionKey().trim()), "AES");
+        this.key = new SecretKeySpec(
+                Base64.getDecoder().decode(properties.encryptionKey().trim()), "AES");
     }
 
     String encrypt(String plain) {

@@ -45,13 +45,12 @@ class ExternalJdbcConnector {
         properties.putAll(settings.params());
         properties.setProperty("user", settings.username());
         properties.setProperty("password", settings.password());
-        String url =
-                switch (type) {
-                    case POSTGRESQL -> postgres(address, settings, properties);
-                    case MYSQL -> mysql(address, settings, properties);
-                    case SQLSERVER -> sqlServer(address, settings, properties);
-                    case ORACLE -> oracle(address, settings, properties);
-                };
+        String url = switch (type) {
+            case POSTGRESQL -> postgres(address, settings, properties);
+            case MYSQL -> mysql(address, settings, properties);
+            case SQLSERVER -> sqlServer(address, settings, properties);
+            case ORACLE -> oracle(address, settings, properties);
+        };
         try (Connection ignored = type == DataSourceType.ORACLE
                 ? oracleConnection(url, address, properties)
                 : DriverManager.getConnection(url, properties)) {
@@ -120,7 +119,8 @@ class ExternalJdbcConnector {
         dataSource.setURL(url);
         dataSource.setConnectionProperties(properties);
         var resolved = new AtomicBoolean();
-        return dataSource.createConnectionBuilder()
+        return dataSource
+                .createConnectionBuilder()
                 .hostnameResolver(host -> {
                     // Oracle TNS REDIRECT 会再次解析；即使仍是同一 IP，也可能换端口或连接描述符。
                     if (!resolved.compareAndSet(false, true)

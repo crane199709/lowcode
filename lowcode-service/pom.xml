@@ -4,11 +4,14 @@
 
     <parent>
         <groupId>io.saasforge</groupId>
-        <artifactId>forge-dependencies</artifactId><version>0.2.0-SNAPSHOT</version>
+        <artifactId>forge-dependencies</artifactId>
+        <version>0.2.0-SNAPSHOT</version>
         <relativePath/>
     </parent>
 
-    <groupId>io.saasforge.lowcode</groupId><artifactId>lowcode-service</artifactId><version>1.0.0-SNAPSHOT</version>
+    <groupId>io.saasforge.lowcode</groupId>
+    <artifactId>lowcode-service</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <name>lowcode-service</name>
     <description>基于 Forge SDK 的 Business Service</description>
 
@@ -19,15 +22,6 @@
         <!-- 启动慢的外部数据库（Oracle）测试默认不运行，-Pslow-dialects 时一并运行，见 AGENTS.md -->
         <excludedGroups>slow-dialect</excludedGroups>
     </properties>
-
-    <profiles>
-        <profile>
-            <id>slow-dialects</id>
-            <properties>
-                <excludedGroups></excludedGroups>
-            </properties>
-        </profile>
-    </profiles>
 
     <!-- 按需接入 storage：添加 forge-sdk-storage，复制当前 schema.sql 为 Flyway 迁移，
          并在服务代码声明 StoragePurpose；已有表升级复制 upgrade-purpose.sql，不修改旧迁移。
@@ -185,6 +179,10 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
@@ -195,4 +193,13 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>slow-dialects</id>
+            <properties>
+                <excludedGroups/>
+            </properties>
+        </profile>
+    </profiles>
 </project>
