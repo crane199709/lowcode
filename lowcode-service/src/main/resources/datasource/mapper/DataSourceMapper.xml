@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="io.saasforge.lowcode.datasource.mapper.DataSourceMapper">
+    <select id="selectPage" resultType="io.saasforge.lowcode.datasource.entity.DataSource">
+        <!-- 手写查询不经过 MyBatis-Plus 的逻辑删除条件，须自行排除已删除的行；列表不需要密码密文，不查询它 -->
+        SELECT id, name, type, host, port, database_name, username, params,
+            created_at, updated_at, created_by, updated_by, deleted
+        FROM data_sources
+        WHERE NOT deleted
+        ORDER BY updated_at DESC, id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>

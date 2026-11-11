@@ -40,6 +40,32 @@ final class SharedContainers {
         return new Postgres(PostgresHolder.CONTAINER.getJdbcUrl().replace("/forge?", "/" + name + "?"));
     }
 
+    /**
+     * 共享 PostgreSQL 容器中的一个普通账号，供数据源测试充当 Tenant 自有的外部数据库。密码与其他任何字段都不相同，
+     * 测试才能断言接口不回显它。
+     */
+    static ExternalDatabase externalPostgres() {
+        var container = PostgresHolder.CONTAINER;
+        exec(
+                container,
+                "psql",
+                "-U",
+                "test",
+                "-d",
+                "forge",
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-c",
+                "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '" + EXTERNAL_USER + "') THEN"
+                        + " CREATE ROLE " + EXTERNAL_USER + " LOGIN PASSWORD '" + EXTERNAL_PASSWORD + "'; END IF; END $$;"
+                        + " GRANT CONNECT ON DATABASE forge TO " + EXTERNAL_USER + ";");
+        return new ExternalDatabase(
+                container.getHost(), container.getMappedPort(5432), "forge", EXTERNAL_USER, EXTERNAL_PASSWORD);
+    }
+
+    private static final String EXTERNAL_USER = "tenant_reader";
+    private static final String EXTERNAL_PASSWORD = "Ext3rnal-Secr3t";
+
     /** 为调用的测试类分配一个清空的 Redis 库。 */
     static Redis redis() {
         int database = REDIS_DATABASES.getAndIncrement() % REDIS_DATABASE_COUNT;
@@ -67,6 +93,8 @@ final class SharedContainers {
             return jdbcUrl;
         }
     }
+
+    record ExternalDatabase(String host, int port, String database, String username, String password) {}
 
     record Redis(GenericContainer<?> container, int database) {
         String getHost() {

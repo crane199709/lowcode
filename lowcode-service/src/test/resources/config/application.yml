@@ -33,5 +33,11 @@ forge:
     write-guard:
       enabled: false
 
+# 测试默认禁止链路本地与私有网段；不含本机，共享容器经本机端口映射充当租户的外部数据库
+lowcode:
+  datasource:
+    blocked-networks: 169.254.0.0/16,10.0.0.0/8
+    encryption-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+
 server:
   port: 0

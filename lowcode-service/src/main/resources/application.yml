@@ -45,5 +45,11 @@ forge:
     # IAM 内部地址与本服务专属上报令牌：接入清单 Manifest 步骤
     iam-uri: ${FORGE_IAM_URI}
     token: ${FORGE_MANIFEST_TOKEN}
+lowcode:
+  datasource:
+    # 禁止租户数据源连接的网段（逗号分隔的 CIDR，通常是平台内网）与加密数据源密码的 AES-256 密钥（Base64 的 32 字节）：
+    # 平台运维；两者都没有安全的默认值，漏配启动失败（ADR-0002）
+    blocked-networks: ${LOWCODE_DATASOURCE_BLOCKED_NETWORKS}
+    encryption-key: ${LOWCODE_DATASOURCE_ENCRYPTION_KEY}
 mybatis-plus:
   mapper-locations: classpath*:/*/mapper/**/*.xml
