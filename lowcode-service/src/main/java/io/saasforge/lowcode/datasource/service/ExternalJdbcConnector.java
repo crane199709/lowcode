@@ -240,14 +240,14 @@ class ExternalJdbcConnector {
             case MYSQL -> mysql(address, settings, properties);
             case SQLSERVER -> sqlServer(address, settings, properties);
             case ORACLE -> oracle(address, settings, properties);
-            case API -> throw new IllegalArgumentException("API data sources do not use JDBC");
+            case CLICKHOUSE, API -> throw new IllegalArgumentException("HTTP data sources do not use JDBC");
         };
         // SQL 的读取预算要长于查询超时，避免原有 10 秒连接探测预算提前中断 30 秒查询。
         switch (type) {
             case POSTGRESQL -> properties.setProperty("socketTimeout", String.valueOf(readTimeoutSeconds));
             case MYSQL, SQLSERVER -> properties.setProperty("socketTimeout", String.valueOf(readTimeoutSeconds * 1000));
             case ORACLE -> properties.setProperty("oracle.jdbc.ReadTimeout", String.valueOf(readTimeoutSeconds * 1000));
-            case API -> throw new IllegalArgumentException("API data sources do not use JDBC");
+            case CLICKHOUSE, API -> throw new IllegalArgumentException("HTTP data sources do not use JDBC");
         }
         try (Connection connection = type == DataSourceType.ORACLE
                 ? oracleConnection(url, address, properties)
@@ -375,7 +375,7 @@ class ExternalJdbcConnector {
             case MYSQL -> code == 1045;
             case SQLSERVER -> code == 18456;
             case ORACLE -> code == 1017;
-            case POSTGRESQL, API -> false;
+            case POSTGRESQL, CLICKHOUSE, API -> false;
         };
     }
 
@@ -386,7 +386,7 @@ class ExternalJdbcConnector {
             case MYSQL -> code == 1049 || code == 1044;
             case SQLSERVER -> code == 4060;
             case ORACLE -> code == 12514;
-            case POSTGRESQL, API -> false;
+            case POSTGRESQL, CLICKHOUSE, API -> false;
         };
     }
 }

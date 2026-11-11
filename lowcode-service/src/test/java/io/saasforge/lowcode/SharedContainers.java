@@ -164,6 +164,30 @@ final class SharedContainers {
         return external(OracleHolder.CONTAINER, OracleHolder.CONTAINER.getDatabaseName(), 1521);
     }
 
+    /** ClickHouse 通过 HTTP 接口访问，首次调用时启动。 */
+    static ExternalDatabase externalClickHouse() {
+        var container = ClickHouseHolder.CONTAINER;
+        return new ExternalDatabase(
+                container.getHost(), container.getMappedPort(8123), "default", EXTERNAL_USER, EXTERNAL_PASSWORD);
+    }
+
+    private static final class ClickHouseHolder {
+        static final GenericContainer<?> CONTAINER = new GenericContainer<>("clickhouse/clickhouse-server:25.8-alpine")
+                .withExposedPorts(8123)
+                .withEnv("CLICKHOUSE_USER", EXTERNAL_USER)
+                .withEnv("CLICKHOUSE_PASSWORD", EXTERNAL_PASSWORD)
+                .withEnv("CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT", "1")
+                .withCopyFileToContainer(
+                        MountableFile.forClasspathResource("metadata/clickhouse.sql"),
+                        "/docker-entrypoint-initdb.d/metadata.sql")
+                .waitingFor(org.testcontainers.containers.wait.strategy.Wait.forHttp("/ping")
+                        .forStatusCode(200));
+
+        static {
+            CONTAINER.start();
+        }
+    }
+
     private static ExternalDatabase external(JdbcDatabaseContainer<?> container, String database, int port) {
         return new ExternalDatabase(
                 container.getHost(),

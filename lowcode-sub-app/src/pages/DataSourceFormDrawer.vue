@@ -466,6 +466,14 @@ async function save() {
             </el-checkbox>
           </el-form-item>
         </template>
+        <template v-else-if="form.type === 'CLICKHOUSE'">
+          <el-form-item :label="t('encrypt')">
+            <el-select v-model="form.params.ssl">
+              <el-option value="true" :label="t('encryptOn')" />
+              <el-option value="false" :label="t('encryptOff')" />
+            </el-select>
+          </el-form-item>
+        </template>
         <template v-else-if="form.type === 'SQLSERVER'">
           <el-form-item :label="t('encrypt')">
             <el-select v-model="form.params.encrypt">

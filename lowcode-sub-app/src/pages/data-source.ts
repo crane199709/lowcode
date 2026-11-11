@@ -1,7 +1,7 @@
 import { ApiError } from '@crane199709/sdk'
 import type { ErrorTip } from '@crane199709/ui'
 
-export type DatabaseSourceType = 'POSTGRESQL' | 'MYSQL' | 'SQLSERVER' | 'ORACLE'
+export type DatabaseSourceType = 'POSTGRESQL' | 'MYSQL' | 'SQLSERVER' | 'ORACLE' | 'CLICKHOUSE'
 export type DataSourceType = DatabaseSourceType | 'API'
 export type ApiMethod = 'GET' | 'POST'
 export type ApiAuthType = 'NONE' | 'HEADER' | 'BASIC'
@@ -73,6 +73,7 @@ export const typeLabels: Record<DataSourceType, string> = {
   MYSQL: 'MySQL',
   SQLSERVER: 'SQL Server',
   ORACLE: 'Oracle',
+  CLICKHOUSE: 'ClickHouse',
   API: 'API',
 }
 
@@ -93,6 +94,7 @@ export const typeDefaults: Record<
   MYSQL: { port: 3306, params: { sslMode: 'PREFERRED', allowPublicKeyRetrieval: 'false' } },
   SQLSERVER: { port: 1433, params: { encrypt: 'true', trustServerCertificate: 'false' } },
   ORACLE: { port: 1521, params: {} },
+  CLICKHOUSE: { port: 8123, params: { ssl: 'false' } },
 }
 
 export function isDatabaseType(type: DataSourceType): type is DatabaseSourceType {

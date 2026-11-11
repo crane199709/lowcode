@@ -5,10 +5,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * API 类 Data Source 的取数约束。超时与响应体上限是控制服务端为租户发起请求的代价，默认值写在 {@link DefaultValue}。
+ * 外部 HTTP Data Source（API 与 ClickHouse）的响应约束。超时与响应体上限是控制服务端为租户发起请求的代价，默认值写在 {@link DefaultValue}。
  *
- * @param timeout 连接与等待响应的超时
- * @param maxResponseBytes 单个响应的最大字节数，连接测试与后续取数共用
+ * @param timeout API 请求连接与等待响应的超时；ClickHouse 使用 SQL 的执行预算
+ * @param maxResponseBytes 单个响应的最大字节数，API 与 ClickHouse 的连接测试、元数据与取数共用
  */
 @ConfigurationProperties("lowcode.datasource.api")
 public record ApiProperties(
