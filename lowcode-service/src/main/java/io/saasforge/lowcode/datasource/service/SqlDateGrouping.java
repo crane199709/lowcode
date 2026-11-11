@@ -49,7 +49,15 @@ final class SqlDateGrouping {
                 label = "DATE_FORMAT(" + value + ",'" + percent + "')";
             }
             case SQLSERVER -> {
-                value = "SWITCHOFFSET(TRY_CONVERT(datetimeoffset(7)," + field + ",127),'+00:00')";
+                String normalized = field;
+                if (text) {
+                    // 日分组不需要小数秒；datetimeoffset(7) 会把 23:59:59.999999999 舍入到次日。
+                    normalized = "CASE WHEN CHARINDEX('.'," + field + ")>0 THEN LEFT(" + field + ",CHARINDEX('.',"
+                            + field + ")-1)+CASE WHEN RIGHT(" + field + ",1)='Z' THEN 'Z' WHEN RIGHT(" + field
+                            + ",6) LIKE '[+-][0-9][0-9]:[0-9][0-9]' THEN RIGHT(" + field + ",6) ELSE '' END ELSE "
+                            + field + " END";
+                }
+                value = "SWITCHOFFSET(TRY_CONVERT(datetimeoffset(7)," + normalized + ",127),'+00:00')";
                 if (text) {
                     // TRY_CONVERT 负责日期有效性；形状检查拒绝依赖区域设置的日期文本。
                     valid = field + " LIKE '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]%' AND (LEN(" + field

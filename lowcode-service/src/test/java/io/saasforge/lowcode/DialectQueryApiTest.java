@@ -22,10 +22,6 @@ abstract class DialectQueryApiTest {
     static final SharedContainers.Postgres postgres = SharedContainers.postgres();
     static final SharedContainers.Redis redis = SharedContainers.redis();
 
-    // 用户SQL是HTTP请求数据；三行预览上限不能截断聚合输入。
-    static final String SALES =
-            "WITH sales(region, amount, product) AS (VALUES ('east',10.0,'A'),('east',20.0,'A'),('east',NULL,'B'),('west',4.0,'C'),('west',8.0,'D'),('north',7.0,'E')) SELECT * FROM sales; -- trailing";
-
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry r) {
         r.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -230,6 +226,24 @@ abstract class DialectQueryApiTest {
     }
 
     @Test
+    void isoFractionAndExtremeOffsetsStayOnTheirUtcDays() {
+        String suffix = type().equals("ORACLE") ? " FROM dual" : "";
+        String sql = normalize("SELECT '2024-02-29T23:59:59.999999999+00:00' AS day,1 AS amount" + suffix
+                + " UNION ALL SELECT '2025-01-01T00:15:00+14:00',2"
+                + suffix + " UNION ALL SELECT '2024-12-31T23:45:00-13:59',4"
+                + suffix);
+        String dataset = dataset(sql);
+        markDate(dataset, sql);
+        var q = query(List.of(Map.of("field", "day", "dateGrouping", "DAY")), List.of(measure("amount", "SUM")));
+        String screen = screen(dataset, q);
+        QueryResultAssertions.rows(
+                rows(preview(screen, dataset, q)),
+                new Object[] {"2024-02-29", 1},
+                new Object[] {"2024-12-31", 2},
+                new Object[] {"2025-01-01", 4});
+    }
+
+    @Test
     void sourceCtesOrderingAndRowLimitsKeepTheirMeaning() {
         String suffix = type().equals("ORACLE") ? " FROM dual" : "";
         String source = normalize("SELECT 'east' AS region,1 AS amount" + suffix + " UNION ALL SELECT 'east',2" + suffix
@@ -241,7 +255,10 @@ abstract class DialectQueryApiTest {
         q.put("topN", 1);
         String screen = screen(dataset, q);
         QueryResultAssertions.rows(rows(preview(screen, dataset, q)), new Object[] {"west", 9});
-        dataset = dataset(source + ordered);
+        dataset = dataset(
+                type().equals("CLICKHOUSE")
+                        ? "SELECT * FROM (" + source + ") ordered_source" + ordered
+                        : source + ordered);
         q = query(List.of(), List.of(measure("amount", "SUM")));
         QueryResultAssertions.rows(rows(preview(screen, dataset, q)), new Object[] {12});
         String limited = type().equals("SQLSERVER")

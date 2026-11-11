@@ -103,8 +103,7 @@ public class DatasetQueryService {
                 if (validated.dimensions().get(i).dateGrouping() != null
                         && SqlDateGrouping.INVALID.equals(row.get(i))) {
                     throw new ForgeException(
-                            DatasetErrorCode.QUERY_DATE_INVALID,
-                            columns.get(i).label());
+                            DatasetErrorCode.QUERY_DATE_INVALID, columns.get(i).label());
                 }
             }
         }

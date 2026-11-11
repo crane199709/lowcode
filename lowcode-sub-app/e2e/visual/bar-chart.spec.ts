@@ -37,7 +37,7 @@ const result = {
   truncated: false,
   maxRows: 10000,
 }
-async function mock(page: Page, definition = draft) {
+async function mock(page: Page, definition = draft, date = false) {
   const queries: unknown[] = []
   const saves: unknown[] = []
   await page.route(
@@ -57,7 +57,7 @@ async function mock(page: Page, definition = draft) {
                 displayName: '区域',
                 type: 'STRING',
                 role: 'DIMENSION',
-                date: false,
+                date,
               },
               {
                 name: 'amount',
@@ -288,5 +288,27 @@ for (const [name, width, height] of viewports) {
     )
     await expect(page.getByText('其他组件正常展示')).toBeVisible()
     await expect(page).toHaveScreenshot(`bar-field-missing-${name}.png`)
+  })
+}
+
+for (const [name, width, height] of viewports) {
+  test(`日期维度按日月年分组并保存 ${name}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    const state = await mock(page, { ...draft, widgets: [widget] }, true)
+    await open(page, `screens/${screenId}/edit`, ['screen:edit'])
+    await page.getByTestId('screen-widget').click()
+    const grouping = page.getByRole('combobox', { name: '维度1日期分组', exact: true })
+    await grouping.press('ArrowDown')
+    await page.getByRole('option', { name: '按月', exact: true }).click()
+    await expect(page.getByRole('group', { name: '维度放置区', exact: true })).toContainText('按月')
+    await page.getByRole('button', { name: '保存草稿', exact: true }).click()
+    await expect.poll(() => JSON.stringify(state.saves)).toContain('"dateGrouping":"MONTH"')
+    await expect(page).toHaveScreenshot(`date-grouping-${name}.png`)
+    await grouping.press('ArrowDown')
+    await page.getByRole('option', { name: '按年', exact: true }).click()
+    await expect.poll(() => JSON.stringify(state.queries.at(-1))).toContain('"dateGrouping":"YEAR"')
+    await grouping.press('ArrowDown')
+    await page.getByRole('option', { name: '按日', exact: true }).click()
+    await expect.poll(() => JSON.stringify(state.queries.at(-1))).toContain('"dateGrouping":"DAY"')
   })
 }
