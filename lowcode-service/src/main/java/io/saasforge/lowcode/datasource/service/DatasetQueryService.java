@@ -92,14 +92,19 @@ public class DatasetQueryService {
             filters.add(new Filter(filter.field(), filter.operator(), values));
         }
         var validated = new Query(query.dimensions(), query.measures(), filters, query.sorts(), query.topN());
-        var result = sources.aggregate(dataset.dataSourceId(), dataset.sql(), validated, dataset.fields());
+        var result = dataset.jsonPath() == null
+                ? sources.aggregate(dataset.dataSourceId(), dataset.sql(), validated, dataset.fields())
+                : ApiDatasetAggregator.aggregate(
+                        sources.previewDataset(dataset.dataSourceId(), dataset.sql(), dataset.jsonPath()),
+                        dataset.fields(),
+                        validated);
         for (var row : result.rows()) {
             for (int i = 0; i < validated.dimensions().size(); i++) {
                 if (validated.dimensions().get(i).dateGrouping() != null
                         && SqlDateGrouping.INVALID.equals(row.get(i))) {
                     throw new ForgeException(
                             DatasetErrorCode.QUERY_DATE_INVALID,
-                            validated.dimensions().get(i).field());
+                            columns.get(i).label());
                 }
             }
         }
