@@ -18,8 +18,8 @@ import org.springframework.stereotype.Component;
  * 以原生 JDBC 连接 Tenant 自有的外部数据库。
  *
  * <p>平台架构规则禁止业务代码直接使用 JDBC，因为服务自己的库必须经 MyBatis-Plus 拦截器注入租户隔离；外部数据库不属于平台、
- * 没有租户列，只能直连。ArchitectureTest 只对本类豁免该规则，外部连接都应收在这里（平台反馈见
- * saas-forge-v2 {@code .scratch/lowcode-validation/issues/06-external-jdbc-exemption.md}）。
+ * 没有租户列，只能直连。ArchitectureTest 经 {@code externalJdbcClasses()} 只对本类放开 JDBC 依赖检查，外部连接都应收在这里
+ * （规范见 {@code docs/standards/business-service.md}「禁止」一节的例外）。
  */
 @Component
 class ExternalJdbcConnector {

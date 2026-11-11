@@ -1,6 +1,6 @@
 # AGENTS.md
 
-基于 SaaS Forge 平台的 Business Service，由 `forge-service-archetype` 生成。适用平台版本：0.1.0。
+基于 SaaS Forge 平台的 Business Service，由 `forge-service-archetype` 生成。适用平台版本：0.2.0-SNAPSHOT。
 
 ## 编码规范
 
