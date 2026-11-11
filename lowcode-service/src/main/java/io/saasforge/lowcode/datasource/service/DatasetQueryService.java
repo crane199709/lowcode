@@ -61,7 +61,7 @@ public class DatasetQueryService {
             var dimension = query.dimensions().get(i);
             var field = field(fields, dimension.field());
             if (dimension.dateGrouping() != null && !field.date()) {
-                throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
+                throw new ForgeException(DatasetErrorCode.FIELD_MISSING);
             }
             columns.add(new Column(
                     "d" + i,
@@ -74,7 +74,7 @@ public class DatasetQueryService {
             if (measure.aggregation() != Aggregation.COUNT
                     && measure.aggregation() != Aggregation.COUNT_DISTINCT
                     && field.type() != FieldType.NUMBER) {
-                throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
+                throw new ForgeException(DatasetErrorCode.FIELD_MISSING);
             }
             columns.add(new Column("m" + i, field.displayName() + " · " + measure.aggregation().label, "NUMBER"));
         }

@@ -3,6 +3,7 @@ package io.saasforge.lowcode.datasource.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.saasforge.lowcode.datasource.entity.DataSource;
 import io.saasforge.lowcode.datasource.mapper.DataSourceMapper;
+import io.saasforge.lowcode.datasource.mapper.DatasetMapper;
 import io.saasforge.lowcode.datasource.model.ApiAuthType;
 import io.saasforge.lowcode.datasource.model.ApiConnectionTestResponse;
 import io.saasforge.lowcode.datasource.model.ApiMethod;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -39,6 +41,7 @@ public class DataSourceService {
             Set.of("host", "content-length", "transfer-encoding", "connection", "upgrade");
 
     private final DataSourceMapper dataSourceMapper;
+    private final DatasetMapper datasets;
     private final NetworkGuard networkGuard;
     private final SecretCipher secretCipher;
     private final ExternalJdbcConnector connector;
@@ -49,6 +52,7 @@ public class DataSourceService {
 
     DataSourceService(
             DataSourceMapper dataSourceMapper,
+            DatasetMapper datasets,
             NetworkGuard networkGuard,
             SecretCipher secretCipher,
             ExternalJdbcConnector connector,
@@ -57,6 +61,7 @@ public class DataSourceService {
             ApiDatasetReader apiDatasets,
             JsonMapper jsonMapper) {
         this.dataSourceMapper = dataSourceMapper;
+        this.datasets = datasets;
         this.networkGuard = networkGuard;
         this.secretCipher = secretCipher;
         this.connector = connector;
@@ -112,7 +117,22 @@ public class DataSourceService {
         return get(id);
     }
 
+    public DeletionReferences references(UUID id) {
+        get(id);
+        return new DeletionReferences(
+                datasets.selectReferences(id).stream()
+                        .map(dataset -> new DeletionReferences.Reference(dataset.getId(), dataset.getName()))
+                        .toList(),
+                false);
+    }
+
+    @Transactional
     public void delete(UUID id) {
+        var references = references(id);
+        if (references.blocked()) {
+            throw ForgeException.withErrorMessage(
+                    DataSourceErrorCode.REFERENCED, "Data source is referenced by datasets", references.summary());
+        }
         if (dataSourceMapper.deleteById(id) == 0) {
             throw notFound(id);
         }

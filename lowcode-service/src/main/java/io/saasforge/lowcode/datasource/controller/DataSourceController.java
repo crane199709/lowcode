@@ -9,6 +9,7 @@ import io.saasforge.lowcode.datasource.model.DataSourceRequest;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
 import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.lowcode.datasource.service.DataSourceService;
+import io.saasforge.lowcode.datasource.service.DeletionReferences;
 import io.saasforge.sdk.audit.AuditLog;
 import io.saasforge.sdk.core.api.ApiResponse;
 import io.saasforge.sdk.security.RequiresPermission;
@@ -92,6 +93,13 @@ class DataSourceController {
     public ApiResponse<DataSourceResponse> update(
             @PathVariable UUID id, @Valid @RequestBody DataSourceRequest request) {
         return ApiResponse.ok(response(updateDataSource(id, request)));
+    }
+
+    @Operation(summary = "列出阻止删除的 Dataset，不包含查询定义")
+    @GetMapping("/{id}/references")
+    @RequiresPermission("datasource:manage")
+    public ApiResponse<DeletionReferences> references(@PathVariable UUID id) {
+        return ApiResponse.ok(dataSourceService.references(id));
     }
 
     @Operation(summary = "删除数据源")

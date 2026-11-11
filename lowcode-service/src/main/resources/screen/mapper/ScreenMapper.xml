@@ -19,4 +19,10 @@
         updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
         WHERE id = #{id} AND NOT deleted
     </update>
+    <select id="selectForDatasetReferences" resultType="io.saasforge.lowcode.screen.entity.Screen">
+        SELECT id, name, draft, published, published_name, owner_id, department_path
+        FROM screens
+        WHERE NOT deleted
+        ORDER BY name, id
+    </select>
 </mapper>

@@ -6,6 +6,7 @@ import io.saasforge.lowcode.datasource.model.DatasetResponse;
 import io.saasforge.lowcode.datasource.model.DatasetSourceResponse;
 import io.saasforge.lowcode.datasource.service.DataSourceService;
 import io.saasforge.lowcode.datasource.service.DatasetService;
+import io.saasforge.lowcode.datasource.service.DeletionReferences;
 import io.saasforge.sdk.core.api.ApiResponse;
 import io.saasforge.sdk.security.RequiresPermission;
 import io.saasforge.sdk.web.PageQuery;
@@ -73,6 +74,13 @@ class DatasetController {
     @RequiresPermission("dataset:manage")
     public ApiResponse<DatasetResponse> update(@PathVariable UUID id, @Valid @RequestBody DatasetRequest request) {
         return ApiResponse.ok(datasets.update(id, request));
+    }
+
+    @Operation(summary = "列出阻止删除的可见 Screen 与隐藏引用提示")
+    @GetMapping("/{id}/references")
+    @RequiresPermission("dataset:manage")
+    public ApiResponse<DeletionReferences> references(@PathVariable UUID id) {
+        return ApiResponse.ok(datasets.references(id));
     }
 
     @Operation(summary = "逻辑删除数据集")

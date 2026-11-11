@@ -253,6 +253,45 @@ for (const [name, width, height] of viewports) {
     await expect(page).toHaveScreenshot(`bar-editor-${name}.png`)
     expect(errors).toEqual([])
   })
+  test(`编辑器与播放的失效组件不影响其他取数组件 ${name}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    const broken = { ...widget, width: 1000, height: 800 }
+    const good = { ...widget, id: 'good', type: 'LINE', x: 1120, width: 720, height: 800 }
+    await mock(page, { ...draft, widgets: [broken, good] })
+    await page.route('**/published/widgets/bar/query', (route) =>
+      route.fulfill({
+        status: 422,
+        json: {
+          code: 'dataset.fieldMissing',
+          httpStatus: 422,
+          userTip: '字段不存在，请重新配置组件',
+        },
+      }),
+    )
+    await page.route('**/draft/query', (route) => {
+      if (route.request().postDataJSON().id === 'bar')
+        return route.fulfill({
+          status: 422,
+          json: {
+            code: 'dataset.fieldMissing',
+            httpStatus: 422,
+            userTip: '字段不存在，请重新配置组件',
+          },
+        })
+      return route.fulfill({ json: { code: 'ok', httpStatus: 200, data: result } })
+    })
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    await open(page, `screens/${screenId}/edit`, ['screen:edit', 'screen:view'])
+    await expect(page.getByRole('img', { name: '基础柱状图' })).toContainText('字段不存在')
+    await expect(page.getByRole('img', { name: '基础折线图' }).locator('svg')).toBeVisible()
+    await expect(page).toHaveScreenshot(`field-missing-editor-${name}.png`)
+    await page.goto(`/apps/lowcode/screens/${screenId}/play`)
+    await expect(page.getByRole('img', { name: '基础柱状图' })).toContainText('字段不存在')
+    await expect(page.getByRole('img', { name: '基础折线图' }).locator('svg')).toBeVisible()
+    expect(errors).toEqual([])
+    await expect(page).toHaveScreenshot(`field-missing-playback-${name}.png`)
+  })
   test(`字段不存在仅影响当前组件 ${name}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     const text = {

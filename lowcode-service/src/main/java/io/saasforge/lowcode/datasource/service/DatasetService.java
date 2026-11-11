@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -23,11 +24,13 @@ public class DatasetService {
     private final DatasetMapper mapper;
     private final DataSourceService sources;
     private final JsonMapper json;
+    private final DatasetReferences references;
 
-    DatasetService(DatasetMapper mapper, DataSourceService sources, JsonMapper json) {
+    DatasetService(DatasetMapper mapper, DataSourceService sources, JsonMapper json, DatasetReferences references) {
         this.mapper = mapper;
         this.sources = sources;
         this.json = json;
+        this.references = references;
     }
 
     public DatasetResponse create(DatasetRequest request) {
@@ -60,7 +63,18 @@ public class DatasetService {
         return mapper.selectCount(new LambdaQueryWrapper<>());
     }
 
+    public DeletionReferences references(UUID id) {
+        require(id);
+        return references.find(id);
+    }
+
+    @Transactional
     public void delete(UUID id) {
+        var references = references(id);
+        if (references.blocked()) {
+            throw ForgeException.withErrorMessage(
+                    DatasetErrorCode.REFERENCED, "Dataset is referenced by screens", references.summary());
+        }
         if (mapper.deleteById(id) == 0) {
             throw notFound();
         }
@@ -112,7 +126,7 @@ public class DatasetService {
     }
 
     private DatasetResponse response(Dataset dataset) {
-        // 数据源的引用保护由工单 16 实现；已删除的数据源仍允许查看数据集定义。
+        // 兼容历史定义：已删除的数据源仍允许查看 Dataset。
         String sourceName;
         try {
             sourceName = sources.get(dataset.getDataSourceId()).getName();

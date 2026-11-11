@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElButton, ElMessageBox, ElTableColumn } from 'element-plus'
+import { ElButton, ElTableColumn } from 'element-plus'
 import { useAccessControl, useTenantClient, type Page } from '@crane199709/sdk'
 import {
   ErrorAlert,
@@ -13,6 +13,7 @@ import {
 } from '@crane199709/ui'
 import DataSourceDetailDrawer from './DataSourceDetailDrawer.vue'
 import DataSourceFormDrawer from './DataSourceFormDrawer.vue'
+import ResourceDeleteDialog from './ResourceDeleteDialog.vue'
 import { errorTip, sourceAddress, typeLabels, type DataSource } from './data-source'
 
 const { t } = useI18n({
@@ -32,11 +33,6 @@ const { t } = useI18n({
       delete: '删除',
       empty: '暂无数据源',
       failed: '数据源加载失败，请稍后重试',
-      deleteTitle: '删除数据源',
-      deleteConfirm: '删除「{name}」后，基于它的数据集将无法取数。',
-      deleteFailed: '删除失败，请稍后重试',
-      confirm: '删除',
-      cancel: '取消',
     },
   },
 })
@@ -49,6 +45,8 @@ const canManage = computed(() => access.has('datasource:manage'))
 const dataSources = ref<Page<DataSource> | null>(null)
 const busy = ref(false)
 const error = ref<ErrorTip | null>(null)
+const deleting = ref<DataSource | null>(null)
+const deleteOpen = ref(false)
 const drawerOpen = ref(false)
 const detailOpen = ref(false)
 const viewing = ref<DataSource | null>(null)
@@ -77,23 +75,9 @@ function openForm(row: DataSource | null) {
   drawerOpen.value = true
 }
 
-async function remove(row: DataSource) {
-  try {
-    await ElMessageBox.confirm(t('deleteConfirm', { name: row.name }), t('deleteTitle'), {
-      type: 'warning',
-      confirmButtonText: t('confirm'),
-      cancelButtonText: t('cancel'),
-    })
-  } catch {
-    return
-  }
-  error.value = null
-  try {
-    await client.api<void>(`/lowcode/data-sources/${row.id}`, { method: 'DELETE' })
-    await load()
-  } catch (cause) {
-    error.value = errorTip(cause, t('deleteFailed'))
-  }
+function remove(row: DataSource) {
+  deleting.value = row
+  deleteOpen.value = true
 }
 
 onMounted(() => load())
@@ -149,6 +133,13 @@ onMounted(() => load())
         </template>
       </el-table-column>
     </ListPage>
+    <ResourceDeleteDialog
+      v-model="deleteOpen"
+      :resource="deleting"
+      path="data-sources"
+      label="数据源"
+      @deleted="load()"
+    />
     <DataSourceDetailDrawer v-model="detailOpen" :source="viewing" />
     <DataSourceFormDrawer v-model="drawerOpen" :editing="editing" @saved="load()" />
   </section>

@@ -1,5 +1,6 @@
 package io.saasforge.lowcode.screen.mapper;
 
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.saasforge.lowcode.screen.entity.Screen;
 import java.util.List;
@@ -22,4 +23,10 @@ public interface ScreenMapper extends BaseMapper<Screen> {
             @Param("limit") int limit, @Param("offset") long offset, @Param("publishedOnly") boolean publishedOnly);
     /** 将当前已保存的草稿与名称原子冻结为快照；受 Tenant 与 Data Policy 过滤。 */
     int publish(@Param("id") UUID id, @Param("updatedBy") UUID updatedBy);
+    /**
+     * 仅供 Dataset 删除保护扫描同 Tenant 全部有效草稿与快照，防止隐藏 Data Scope 内引用漏检。
+     * 只跳过 Screen Data Policy；Tenant 拦截器与数据库 RLS 始终保留。响应由专用服务按当前策略脱敏。
+     */
+    @InterceptorIgnore(dataPermission = "true")
+    List<Screen> selectForDatasetReferences();
 }

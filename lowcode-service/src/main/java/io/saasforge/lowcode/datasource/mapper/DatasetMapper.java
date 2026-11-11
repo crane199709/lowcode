@@ -3,6 +3,7 @@ package io.saasforge.lowcode.datasource.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.saasforge.lowcode.datasource.entity.Dataset;
 import java.util.List;
+import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -11,4 +12,6 @@ import org.apache.ibatis.annotations.Param;
 public interface DatasetMapper extends BaseMapper<Dataset> {
     /** 按更新时间倒序、ID 稳定分页，排除逻辑删除。 */
     List<Dataset> selectPage(@Param("limit") int limit, @Param("offset") long offset);
+    /** 删除保护使用的当前租户全部有效 Dataset；仍受租户隔离，不受 Screen Data Policy 影响。 */
+    List<Dataset> selectReferences(@Param("dataSourceId") UUID dataSourceId);
 }

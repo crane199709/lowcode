@@ -4,6 +4,7 @@ import io.saasforge.sdk.core.api.ErrorCode;
 
 public enum DatasetErrorCode implements ErrorCode {
     NOT_FOUND("dataset.notFound", 404),
+    REFERENCED("dataset.referenced", 409),
     SQL_NOT_ALLOWED("dataset.sqlNotAllowed", 400),
     SOURCE_NOT_SUPPORTED("dataset.sourceNotSupported", 400),
     JSON_PATH_INVALID("dataset.jsonPathInvalid", 400),
