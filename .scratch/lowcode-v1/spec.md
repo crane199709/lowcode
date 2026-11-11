@@ -1,6 +1,6 @@
 # 低代码一期：数据源与大屏规格
 
-Status: claimed
+Status: resolved
 
 术语以 [GLOSSARY.md](../../GLOSSARY.md) 为准，平台术语以 SaaS Forge 平台定义为准。本规格的决策经 2026-11-11 的设计拷问逐条确认；架构取舍见 [ADR-0001](../../docs/adr/0001-dataset-layer-between-source-and-widget.md)、[ADR-0002](../../docs/adr/0002-structured-connection-and-blocked-networks.md)。
 
@@ -140,3 +140,9 @@ Status: claimed
 ## 11. 已知临时措施
 
 - `lowcode-sub-app/pnpm-workspace.yaml` 用 `overrides` 指向 `.forge-packages/` 中按平台源码打包的 `@crane199709/*@0.2.0-SNAPSHOT`，因包含当前脚手架规范的正式版本尚未发布；必须与实际 Shell 的共享版本一致（平台反馈 01）。平台发布新版本后删除 overrides 与 `.forge-packages/`。
+
+## 12. 实现与验收结论
+
+2026-11-11，一期 [18 个实施工单](issues/) 均已 resolved，范围内能力已实现；[验收记录](acceptance.md) 保留票据 17 的原始真实链路与最终审查修复后的独立复验。最终默认后端回归 183 项、前端视觉 / 交互 130 项及新建隔离平台真实链路 1 项均通过。
+
+[最终审查记录](review.md) 分别保留 Standards / Spec 两轴原报告、修复及原 reviewer 定向复核。P1 Dataset UUID 大小写引用保护已按公开 HTTP 红绿验证修复；纯 API 投影归属、显式 import 和编辑 / 播放样式重复也已关闭。已知平台反馈、临时 snapshot 包、Oracle / 移动端等验证边界以验收记录为准，不扩大一期范围。

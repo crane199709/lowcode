@@ -186,8 +186,7 @@ final class SharedContainers {
                 .withCopyFileToContainer(
                         MountableFile.forClasspathResource("metadata/clickhouse.sql"),
                         "/docker-entrypoint-initdb.d/metadata.sql")
-                .waitingFor(org.testcontainers.containers.wait.strategy.Wait.forHttp("/ping")
-                        .forStatusCode(200));
+                .waitingFor(Wait.forHttp("/ping").forStatusCode(200));
 
         static {
             CONTAINER.start();

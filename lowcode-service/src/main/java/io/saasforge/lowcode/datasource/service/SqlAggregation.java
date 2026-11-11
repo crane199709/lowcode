@@ -2,6 +2,7 @@ package io.saasforge.lowcode.datasource.service;
 
 import io.saasforge.lowcode.datasource.model.DataSourceType;
 import io.saasforge.lowcode.datasource.model.FieldResponse;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -201,7 +202,7 @@ final class SqlAggregation {
             return "?";
         }
         String dataType;
-        if (value instanceof java.math.BigDecimal decimal) {
+        if (value instanceof BigDecimal decimal) {
             dataType = "Decimal(76," + Math.max(0, decimal.scale()) + ")";
         } else if (value instanceof Number) {
             dataType = "UInt32";

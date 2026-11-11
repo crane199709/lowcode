@@ -56,9 +56,8 @@ public class ScreenDatasetReferences implements DatasetReferences {
         }
         return json.readValue(definition, ScreenDraft.class).widgets().stream()
                 .anyMatch(widget -> widget.isQueryWidget()
-                        && datasetId
-                                .toString()
-                                .equals(widget.config().path("datasetId").asString("")));
+                        && datasetId.equals(UUID.fromString(
+                                widget.config().path("datasetId").asString())));
     }
 
     private static HashMap<String, Object> attributes(Screen screen) {

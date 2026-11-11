@@ -2,10 +2,12 @@ package io.saasforge.lowcode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -187,21 +189,19 @@ abstract class DialectQueryApiTest {
         QueryResultAssertions.rows(rows(preview(screen, dataset, q)), new Object[] {"west", 4, 4, 1, 1, 4, 4});
         q.remove("topN");
         q.put("sorts", List.of());
-        q.put("filters", List.of(Map.of("field", "region", "operator", "EQ", "values", java.util.Arrays.asList((Object)
-                null))));
+        q.put("filters", List.of(Map.of("field", "region", "operator", "EQ", "values", Arrays.asList((Object) null))));
         QueryResultAssertions.rows(rows(preview(screen, dataset, q)), new Object[] {null, 3, 3, 1, 1, 3, 3});
         q.put(
                 "filters",
                 List.of(
-                        Map.of("field", "region", "operator", "IN", "values", java.util.Arrays.asList("west", null)),
+                        Map.of("field", "region", "operator", "IN", "values", Arrays.asList("west", null)),
                         Map.of("field", "amount", "operator", "BETWEEN", "values", List.of(3, 4))));
         QueryResultAssertions.rows(
                 rows(preview(screen, dataset, q)),
                 new Object[] {"west", 4, 4, 1, 1, 4, 4},
                 new Object[] {null, 3, 3, 1, 1, 3, 3});
         q.put("dimensions", List.of());
-        q.put("filters", List.of(Map.of("field", "amount", "operator", "EQ", "values", java.util.Arrays.asList((Object)
-                null))));
+        q.put("filters", List.of(Map.of("field", "amount", "operator", "EQ", "values", Arrays.asList((Object) null))));
         QueryResultAssertions.allNull(rows(preview(screen, dataset, q)));
         q.put("filters", List.of(Map.of("field", "region", "operator", "EQ", "values", List.of("missing' OR 1=1 --"))));
         QueryResultAssertions.allNull(rows(preview(screen, dataset, q)));
@@ -491,7 +491,7 @@ class ClickHouseQueryApiTest extends DialectQueryApiTest {
     }
 }
 
-@org.junit.jupiter.api.Tag("slow-dialect")
+@Tag("slow-dialect")
 class OracleQueryApiTest extends DialectQueryApiTest {
     String type() {
         return "ORACLE";

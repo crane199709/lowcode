@@ -1,7 +1,11 @@
 package io.saasforge.lowcode.screen.service;
 
 import io.saasforge.lowcode.datasource.service.DatasetQueryService;
+import io.saasforge.lowcode.screen.model.BindingDataset;
+import io.saasforge.lowcode.screen.model.BindingField;
+import io.saasforge.lowcode.screen.model.OutputColumn;
 import io.saasforge.lowcode.screen.model.ScreenDraft;
+import io.saasforge.lowcode.screen.model.WidgetData;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.web.PageQuery;
 import java.util.List;
@@ -113,15 +117,6 @@ public class ScreenQueryService {
         }
         return config;
     }
-
-    // 屏幕响应由 screen 自己拥有；Controller 不得依赖其他功能包，即使仅在泛型中引用。
-    public record WidgetData(List<OutputColumn> columns, List<List<Object>> rows, boolean truncated, int maxRows) {}
-
-    public record OutputColumn(String id, String label, String type) {}
-
-    public record BindingDataset(UUID id, String name, List<BindingField> fields) {}
-
-    public record BindingField(String name, String displayName, String type, String role, boolean date) {}
 
     public record Config(UUID datasetId, DatasetQueryService.Query query, int refreshSeconds, Boolean donut) {}
 }

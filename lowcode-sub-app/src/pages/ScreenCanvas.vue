@@ -1,27 +1,8 @@
 <script setup lang="ts">
 import ScreenImage from './ScreenImage.vue'
 import ScreenWidgetContent from './ScreenWidgetContent.vue'
-import type { ScreenDraft, ScreenWidget } from './screen'
+import { widgetStyle, type ScreenDraft } from './screen'
 defineProps<{ draft: ScreenDraft; imageBase: string; queryBase?: string }>()
-function style(widget: ScreenWidget) {
-  return {
-    position: 'absolute' as const,
-    left: `${widget.x}px`,
-    top: `${widget.y}px`,
-    width: `${widget.width}px`,
-    height: `${widget.height}px`,
-    zIndex: widget.zIndex,
-    ...(widget.type === 'TEXT'
-      ? {
-          color: widget.config.color,
-          backgroundColor: widget.config.backgroundColor,
-          fontSize: `${widget.config.fontSize}px`,
-          fontWeight: widget.config.fontWeight,
-          textAlign: widget.config.textAlign,
-        }
-      : {}),
-  }
-}
 </script>
 <template>
   <div
@@ -45,7 +26,7 @@ function style(widget: ScreenWidget) {
       :key="widget.id"
       class="screen-widget"
       data-testid="playback-widget"
-      :style="style(widget)"
+      :style="{ position: 'absolute', ...widgetStyle(widget) }"
     >
       <ScreenWidgetContent :widget="widget" :image-base="imageBase" :query-base="queryBase" />
     </div>

@@ -11,6 +11,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -18,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import org.assertj.core.api.SoftAssertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -119,6 +121,28 @@ class ReferenceProtectionApiTest {
                 .isEqualTo("ok");
         assertThat(call(HttpMethod.DELETE, "/datasets/" + dataset, null).get("code"))
                 .isEqualTo("ok");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void uppercaseDatasetReferencesBlockDeletionInDraftAndPublishedSnapshot(boolean published) {
+        String dataset = dataset(source());
+        String screen = screen(dataset.toUpperCase(Locale.ROOT), "大写 UUID 引用大屏");
+        if (published) {
+            assertThat(call(HttpMethod.POST, "/screens/" + screen + "/publish", null)
+                            .get("code"))
+                    .isEqualTo("ok");
+            assertThat(call(HttpMethod.PUT, "/screens/" + screen + "/draft", emptyDraft())
+                            .get("code"))
+                    .isEqualTo("ok");
+        }
+        var references = referenceList(dataset);
+        var blocked = call(HttpMethod.DELETE, "/datasets/" + dataset, null);
+        SoftAssertions.assertSoftly(soft -> {
+            soft.assertThat(references).isEqualTo(List.of(Map.of("id", screen, "name", "大写 UUID 引用大屏")));
+            soft.assertThat(blocked.get("httpStatus")).isEqualTo(409);
+            soft.assertThat(blocked.get("code")).isEqualTo("dataset.referenced");
+        });
     }
 
     @Test
