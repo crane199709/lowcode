@@ -3,6 +3,7 @@ package io.saasforge.lowcode.datasource.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.saasforge.lowcode.datasource.entity.DataSource;
 import java.util.List;
+import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -20,4 +21,6 @@ public interface DataSourceMapper extends BaseMapper<DataSource> {
     List<DataSource> selectPage(@Param("limit") int limit, @Param("offset") long offset);
     /** 分页列出 Dataset 可选的 Data Source，只返回标识与名称，不暴露连接信息。 */
     List<DataSource> selectDatasetPage(@Param("limit") int limit, @Param("offset") long offset);
+    /** 引用写入和删除共享的目标行锁；只锁当前 Tenant 的有效记录，保持 Tenant 与 RLS。 */
+    DataSource selectForUpdate(@Param("id") UUID id);
 }

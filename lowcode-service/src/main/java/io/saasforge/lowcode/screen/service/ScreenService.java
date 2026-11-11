@@ -1,6 +1,7 @@
 package io.saasforge.lowcode.screen.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.saasforge.lowcode.datasource.service.DatasetService;
 import io.saasforge.lowcode.screen.entity.Screen;
 import io.saasforge.lowcode.screen.mapper.ScreenMapper;
 import io.saasforge.lowcode.screen.model.ScreenDraft;
@@ -16,7 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -35,6 +38,8 @@ public class ScreenService {
     private final MembershipGrantStore grants;
     private final CurrentActorProvider actors;
     private final ObjectStorage storage;
+    private final DatasetService datasets;
+    private final TransactionTemplate writes;
 
     public ScreenService(
             ScreenMapper screenMapper,
@@ -42,13 +47,17 @@ public class ScreenService {
             JsonMapper json,
             MembershipGrantStore grants,
             CurrentActorProvider actors,
-            ObjectStorage storage) {
+            ObjectStorage storage,
+            DatasetService datasets,
+            PlatformTransactionManager transactions) {
         this.screenMapper = screenMapper;
         this.dataPermission = dataPermission;
         this.json = json;
         this.grants = grants;
         this.actors = actors;
         this.storage = storage;
+        this.datasets = datasets;
+        this.writes = new TransactionTemplate(transactions);
     }
 
     /**
@@ -72,9 +81,12 @@ public class ScreenService {
         });
         dataPermission.check(DATA_RESOURCE, attributes(screen));
         validateImages(draft);
-        screenMapper.insert(screen);
-        // 创建时间由数据库生成，重新读取才能返回与之后查询一致的值
-        return get(screen.getId());
+        return writes.execute(status -> {
+            lockDatasets(draft);
+            screenMapper.insert(screen);
+            // 创建时间由数据库生成，重新读取才能返回与之后查询一致的值
+            return get(screen.getId());
+        });
     }
 
     public List<Screen> list(PageQuery query) {
@@ -127,10 +139,13 @@ public class ScreenService {
             validateQueries(draft);
             screen.setDraft(json.writeValueAsString(draft));
         }
-        if (screenMapper.updateById(screen) == 0) {
-            throw notFound(id);
-        }
-        return get(id);
+        return writes.execute(status -> {
+            lockDatasets(draft);
+            if (screenMapper.updateById(screen) == 0) {
+                throw notFound(id);
+            }
+            return get(id);
+        });
     }
 
     public ScreenDraft draft(Screen screen) {
@@ -144,13 +159,15 @@ public class ScreenService {
         var screen = new Screen();
         screen.setId(id);
         screen.setDraft(json.writeValueAsString(draft));
-        if (screenMapper.updateById(screen) == 0) {
-            throw notFound(id);
-        }
-        return draft(get(id));
+        return writes.execute(status -> {
+            lockDatasets(draft);
+            if (screenMapper.updateById(screen) == 0) {
+                throw notFound(id);
+            }
+            return draft(get(id));
+        });
     }
 
-    @Transactional
     public Screen copy(UUID id) {
         Screen original = get(id);
         String name = original.getName();
@@ -188,6 +205,16 @@ public class ScreenService {
     public void delete(UUID id) {
         if (screenMapper.deleteById(id) == 0) {
             throw notFound(id);
+        }
+    }
+
+    private void lockDatasets(ScreenDraft draft) {
+        if (draft != null) {
+            datasets.lockForScreenReferences(draft.widgets().stream()
+                    .filter(ScreenDraft.Widget::isQueryWidget)
+                    .map(widget ->
+                            UUID.fromString(widget.config().path("datasetId").asString()))
+                    .toList());
         }
     }
 

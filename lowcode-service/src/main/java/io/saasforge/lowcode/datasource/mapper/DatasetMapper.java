@@ -14,4 +14,6 @@ public interface DatasetMapper extends BaseMapper<Dataset> {
     List<Dataset> selectPage(@Param("limit") int limit, @Param("offset") long offset);
     /** 删除保护使用的当前租户全部有效 Dataset；仍受租户隔离，不受 Screen Data Policy 影响。 */
     List<Dataset> selectReferences(@Param("dataSourceId") UUID dataSourceId);
+    /** 引用写入和删除共享的目标行锁；只锁当前 Tenant 的有效记录，保持 Tenant 与 RLS。 */
+    Dataset selectForUpdate(@Param("id") UUID id);
 }

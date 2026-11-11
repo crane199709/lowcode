@@ -2,14 +2,26 @@ package io.saasforge.lowcode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.sun.net.httpserver.HttpServer;
+import io.saasforge.lowcode.reference.mapper.ReferenceConcurrencyMapper;
 import io.saasforge.sdk.abac.DataScope;
+import io.saasforge.sdk.core.CurrentTenant;
 import io.saasforge.sdk.core.SubjectAttributes;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -18,6 +30,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.client.RestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -40,6 +55,12 @@ class ReferenceProtectionApiTest {
 
     @Autowired
     StringRedisTemplate redisTemplate;
+
+    @Autowired
+    ReferenceConcurrencyMapper concurrency;
+
+    @Autowired
+    PlatformTransactionManager transactions;
 
     String token;
 
@@ -128,9 +149,19 @@ class ReferenceProtectionApiTest {
         String hiddenScreen = screen(dataset, "保密经营大屏名称");
         String tenantOnlyDataset = dataset(source());
         UUID otherTenant = UUID.randomUUID();
-        TestGrants.publish(redisTemplate, otherTenant, TestTokens.MEMBERSHIP_ID, List.of("screen:edit"));
+        TestGrants.publish(
+                redisTemplate,
+                otherTenant,
+                TestTokens.MEMBERSHIP_ID,
+                List.of("datasource:manage", "dataset:manage", "screen:edit"));
         token = TestTokens.forTenant(otherTenant);
-        String otherScreen = screen(tenantOnlyDataset, "其他租户机密大屏");
+        assertThat(call(HttpMethod.POST, "/screens", Map.of("name", "跨租户非法绑定", "draft", draft(tenantOnlyDataset)))
+                        .get("httpStatus"))
+                .isEqualTo(404);
+        assertThat(call(HttpMethod.GET, "/datasets/" + dataset + "/references", null)
+                        .get("httpStatus"))
+                .isEqualTo(404);
+        String otherScreen = screen(dataset(source()), "其他租户机密大屏");
         UUID scoped = UUID.randomUUID();
         TestGrants.publish(
                 redisTemplate,
@@ -270,6 +301,132 @@ class ReferenceProtectionApiTest {
                 .doesNotContain(screen, unpublished, "公开发布名称", "新草稿机密名称");
         assertThat(call(HttpMethod.DELETE, "/datasets/" + dataset, null).get("code"))
                 .isEqualTo("dataset.referenced");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void sourceDeletedDuringRemotePreviewCannotReceiveNewDatasetReference(boolean updating) throws Exception {
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/rows", exchange -> {
+            entered.countDown();
+            try {
+                release.await(10, TimeUnit.SECONDS);
+                byte[] body = "[{\"region\":\"east\",\"amount\":12}]".getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, body.length);
+                exchange.getResponseBody().write(body);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                exchange.close();
+            }
+        });
+        server.start();
+        try {
+            String source = id(call(
+                    HttpMethod.POST,
+                    "/data-sources",
+                    Map.of(
+                            "name",
+                            "预览并发源",
+                            "type",
+                            "API",
+                            "api",
+                            Map.of(
+                                    "url",
+                                    "http://127.0.0.1:" + server.getAddress().getPort() + "/rows",
+                                    "method",
+                                    "GET",
+                                    "authType",
+                                    "NONE"))));
+            String previousSource = updating ? source() : null;
+            String previousDataset = updating ? dataset(previousSource) : null;
+            var saving = CompletableFuture.supplyAsync(() -> call(
+                    updating ? HttpMethod.PUT : HttpMethod.POST,
+                    updating ? "/datasets/" + previousDataset : "/datasets",
+                    Map.of("name", "预览并发数据集", "dataSourceId", source, "jsonPath", "$")));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(call(HttpMethod.DELETE, "/data-sources/" + source, null).get("code"))
+                    .isEqualTo("ok");
+            release.countDown();
+            var saved = saving.get(5, TimeUnit.SECONDS);
+            assertThat(saved.get("code")).isEqualTo("datasource.notFound");
+            assertThat(saved.get("httpStatus")).isEqualTo(404);
+            if (updating) {
+                assertThat(((Map<?, ?>) call(HttpMethod.GET, "/datasets/" + previousDataset, null)
+                                        .get("data"))
+                                .get("dataSourceId"))
+                        .isEqualTo(previousSource);
+            }
+        } finally {
+            release.countDown();
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void datasetDeletionWaitsForConcurrentDraftReferenceAndThenRefusesDeletion() throws Exception {
+        String dataset = dataset(source());
+        String screen = id(call(HttpMethod.POST, "/screens", Map.of("name", "并发草稿", "draft", emptyDraft())));
+        var saving = new AtomicReference<CompletableFuture<Map<?, ?>>>();
+        var deleting = new AtomicReference<CompletableFuture<Map<?, ?>>>();
+        var probe = new TransactionTemplate(transactions);
+        probe.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        // 测试数据库只安排并发时序；是否保留资源与引用保护结果全部通过 HTTP 验证。
+        try (var ignored = CurrentTenant.bind(TestTokens.TENANT_ID)) {
+            new TransactionTemplate(transactions).executeWithoutResult(status -> {
+                concurrency.lockScreen(UUID.fromString(screen));
+                saving.set(CompletableFuture.supplyAsync(
+                        () -> call(HttpMethod.PUT, "/screens/" + screen + "/draft", draft(dataset))));
+                await(() -> probe.execute(probeStatus -> concurrency.waitingScreenWrites()) > 0);
+                deleting.set(
+                        CompletableFuture.supplyAsync(() -> call(HttpMethod.DELETE, "/datasets/" + dataset, null)));
+                await(() ->
+                        deleting.get().isDone() || probe.execute(probeStatus -> concurrency.waitingDatasetLocks()) > 0);
+            });
+        }
+        assertThat(saving.get().get(5, TimeUnit.SECONDS).get("code")).isEqualTo("ok");
+        var deleted = deleting.get().get(5, TimeUnit.SECONDS);
+        assertThat(deleted.get("code")).isEqualTo("dataset.referenced");
+        assertThat(deleted.get("httpStatus")).isEqualTo(409);
+        assertThat(call(HttpMethod.GET, "/datasets/" + dataset, null).get("code"))
+                .isEqualTo("ok");
+        assertThat(referenceList(dataset)).hasSize(1);
+    }
+
+    void await(BooleanSupplier condition) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!condition.getAsBoolean()) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("并发调度未在五秒内到达数据库等待点");
+            }
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }
+    }
+
+    @Test
+    void deletedDatasetCannotBeReintroducedByCreateOrEitherDraftSaveEndpoint() {
+        String dataset = dataset(source());
+        String empty = id(call(HttpMethod.POST, "/screens", Map.of("name", "保留原稿", "draft", emptyDraft())));
+        assertThat(call(HttpMethod.DELETE, "/datasets/" + dataset, null).get("code"))
+                .isEqualTo("ok");
+        assertThat(call(HttpMethod.POST, "/screens", Map.of("name", "新大屏", "draft", draft(dataset)))
+                        .get("code"))
+                .isEqualTo("dataset.notFound");
+        assertThat(call(HttpMethod.PUT, "/screens/" + empty, Map.of("name", "修改", "draft", draft(dataset)))
+                        .get("code"))
+                .isEqualTo("dataset.notFound");
+        assertThat(call(HttpMethod.PUT, "/screens/" + empty + "/draft", draft(dataset))
+                        .get("code"))
+                .isEqualTo("dataset.notFound");
+        assertThat(call(HttpMethod.GET, "/screens/" + empty + "/draft", null).toString())
+                .contains("widgets=[]");
     }
 
     List<?> referenceList(String dataset) {

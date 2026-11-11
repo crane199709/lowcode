@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
@@ -127,8 +128,17 @@ public class DataSourceService {
                 false);
     }
 
+    /** 调用方的最终写事务持有此锁，避免预览之后 Source 已被删除仍保存引用。 */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockForDatasetReference(UUID id) {
+        if (dataSourceMapper.selectForUpdate(id) == null) {
+            throw notFound(id);
+        }
+    }
+
     @Transactional
     public void delete(UUID id) {
+        lockForDatasetReference(id);
         var references = references(id);
         if (references.blocked()) {
             throw ForgeException.withErrorMessage(
