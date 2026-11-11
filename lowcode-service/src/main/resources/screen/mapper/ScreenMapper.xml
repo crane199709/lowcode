@@ -3,7 +3,7 @@
 <mapper namespace="io.saasforge.lowcode.screen.mapper.ScreenMapper">
     <select id="selectPage" resultType="io.saasforge.lowcode.screen.entity.Screen">
         <!-- 手写查询不经过 MyBatis-Plus 的逻辑删除条件，须自行排除已删除的行 -->
-        SELECT id, name, owner_id, department_path, created_at, updated_at, created_by, updated_by, deleted
+        SELECT id, name, draft, owner_id, department_path, created_at, updated_at, created_by, updated_by, deleted
         FROM screens
         WHERE NOT deleted
         ORDER BY updated_at DESC, id

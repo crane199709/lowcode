@@ -3,6 +3,7 @@ package io.saasforge.lowcode.screen.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.saasforge.lowcode.screen.entity.Screen;
 import io.saasforge.lowcode.screen.mapper.ScreenMapper;
+import io.saasforge.lowcode.screen.model.ScreenDraft;
 import io.saasforge.sdk.abac.data.DataPermission;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.web.PageQuery;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 大屏的基础维护。业务代码不含租户与数据权限条件：隔离与按 Data Scope 过滤都由 SDK 注入 SQL。
@@ -24,10 +27,12 @@ public class ScreenService {
 
     private final ScreenMapper screenMapper;
     private final DataPermission dataPermission;
+    private final JsonMapper json;
 
-    public ScreenService(ScreenMapper screenMapper, DataPermission dataPermission) {
+    public ScreenService(ScreenMapper screenMapper, DataPermission dataPermission, JsonMapper json) {
         this.screenMapper = screenMapper;
         this.dataPermission = dataPermission;
+        this.json = json;
     }
 
     /**
@@ -35,8 +40,13 @@ public class ScreenService {
      * 避免创建出自己看不到的数据。系统操作（无认证上下文）创建的大屏没有归属。
      */
     public Screen create(String name) {
+        return create(name, ScreenDraft.empty());
+    }
+
+    public Screen create(String name, ScreenDraft draft) {
         var screen = new Screen();
         screen.setName(name);
+        screen.setDraft(json.writeValueAsString(draft == null ? ScreenDraft.empty() : draft));
         dataPermission.currentSubject().ifPresent(subject -> {
             screen.setOwnerId((UUID) subject.get("subject.membershipId"));
             screen.setDepartmentPath((String) subject.get("subject.primaryDepartmentPath"));
@@ -71,6 +81,40 @@ public class ScreenService {
             throw notFound(id);
         }
         return get(id);
+    }
+
+    public Screen update(UUID id, String name, ScreenDraft draft) {
+        var screen = new Screen();
+        screen.setId(id);
+        screen.setName(name);
+        if (draft != null) {
+            screen.setDraft(json.writeValueAsString(draft));
+        }
+        if (screenMapper.updateById(screen) == 0) {
+            throw notFound(id);
+        }
+        return get(id);
+    }
+
+    public ScreenDraft draft(Screen screen) {
+        return json.readValue(screen.getDraft(), ScreenDraft.class);
+    }
+
+    public ScreenDraft saveDraft(UUID id, ScreenDraft draft) {
+        var screen = new Screen();
+        screen.setId(id);
+        screen.setDraft(json.writeValueAsString(draft));
+        if (screenMapper.updateById(screen) == 0) {
+            throw notFound(id);
+        }
+        return draft(get(id));
+    }
+
+    @Transactional
+    public Screen copy(UUID id) {
+        Screen original = get(id);
+        String name = original.getName();
+        return create(name.substring(0, Math.min(name.length(), 116)) + "（副本）", draft(original));
     }
 
     public void delete(UUID id) {

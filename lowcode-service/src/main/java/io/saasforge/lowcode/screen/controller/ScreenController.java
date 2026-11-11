@@ -1,6 +1,7 @@
 package io.saasforge.lowcode.screen.controller;
 
 import io.saasforge.lowcode.screen.entity.Screen;
+import io.saasforge.lowcode.screen.model.ScreenDraft;
 import io.saasforge.lowcode.screen.service.ScreenService;
 import io.saasforge.sdk.core.api.ApiResponse;
 import io.saasforge.sdk.security.RequiresPermission;
@@ -39,7 +40,7 @@ class ScreenController {
     @RequiresPermission("screen:edit")
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<ScreenResponse> create(@Valid @RequestBody ScreenRequest request) {
-        return ApiResponse.created(ScreenResponse.from(screenService.create(request.name())));
+        return ApiResponse.created(response(screenService.create(request.name(), request.draft())));
     }
 
     @Operation(summary = "分页列出当前成员数据范围内的大屏，最近更新在前")
@@ -47,7 +48,7 @@ class ScreenController {
     @RequiresPermission("screen:view")
     ApiResponse<List<ScreenResponse>> list(PageQuery query) {
         List<ScreenResponse> items =
-                screenService.list(query).stream().map(ScreenResponse::from).toList();
+                screenService.list(query).stream().map(this::response).toList();
         return ApiResponse.page(items, query.toPageMeta(screenService.count()));
     }
 
@@ -55,14 +56,40 @@ class ScreenController {
     @GetMapping("/{id}")
     @RequiresPermission("screen:view")
     ApiResponse<ScreenResponse> get(@PathVariable UUID id) {
-        return ApiResponse.ok(ScreenResponse.from(screenService.get(id)));
+        return ApiResponse.ok(response(screenService.get(id)));
     }
 
-    @Operation(summary = "修改大屏名称")
+    @Operation(summary = "修改大屏名称与草稿")
     @PutMapping("/{id}")
     @RequiresPermission("screen:edit")
     ApiResponse<ScreenResponse> update(@PathVariable UUID id, @Valid @RequestBody ScreenRequest request) {
-        return ApiResponse.ok(ScreenResponse.from(screenService.rename(id, request.name())));
+        return ApiResponse.ok(response(screenService.update(id, request.name(), request.draft())));
+    }
+
+    @Operation(summary = "读取大屏草稿")
+    @GetMapping("/{id}/draft")
+    @RequiresPermission("screen:edit")
+    ApiResponse<ScreenDraft> draft(@PathVariable UUID id) {
+        return ApiResponse.ok(screenService.draft(screenService.get(id)));
+    }
+
+    @Operation(summary = "保存大屏草稿")
+    @PutMapping("/{id}/draft")
+    @RequiresPermission("screen:edit")
+    ApiResponse<ScreenDraft> saveDraft(@PathVariable UUID id, @Valid @RequestBody ScreenDraft draft) {
+        return ApiResponse.ok(screenService.saveDraft(id, draft));
+    }
+
+    @Operation(summary = "复制整个大屏为当前成员的草稿")
+    @PostMapping("/{id}/copy")
+    @RequiresPermission("screen:edit")
+    @ResponseStatus(HttpStatus.CREATED)
+    ApiResponse<ScreenResponse> copy(@PathVariable UUID id) {
+        return ApiResponse.created(response(screenService.copy(id)));
+    }
+
+    private ScreenResponse response(Screen screen) {
+        return ScreenResponse.from(screen, screenService.draft(screen));
     }
 
     @Operation(summary = "删除大屏")
@@ -74,7 +101,8 @@ class ScreenController {
     }
 
     /** 约束与 screens 表一致，违反时由 SDK 返回 400 request.invalid 并逐项列出字段，不必等数据库报错。 */
-    record ScreenRequest(@NotBlank @Size(max = 120) String name) {}
+    record ScreenRequest(
+            @NotBlank @Size(max = 120) String name, @Valid ScreenDraft draft) {}
 
     /**
      * @param ownerId 创建大屏的 Membership，系统创建的大屏为 null
@@ -83,14 +111,16 @@ class ScreenController {
     record ScreenResponse(
             UUID id,
             String name,
+            ScreenDraft draft,
             UUID ownerId,
             String departmentPath,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt) {
-        static ScreenResponse from(Screen screen) {
+        static ScreenResponse from(Screen screen, ScreenDraft draft) {
             return new ScreenResponse(
                     screen.getId(),
                     screen.getName(),
+                    draft,
                     screen.getOwnerId(),
                     screen.getDepartmentPath(),
                     screen.getCreatedAt(),
