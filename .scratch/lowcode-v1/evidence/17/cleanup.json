@@ -1,0 +1,24 @@
+{
+  "project": "lowcode-platform-nxe1thcd",
+  "containersRemoved": true,
+  "volumesRemoved": true,
+  "javaProcesses": {
+    "forge-iam": {
+      "pid": 75415,
+      "stopped": true
+    },
+    "forge-platform": {
+      "pid": 75442,
+      "stopped": true
+    },
+    "lowcode-service": {
+      "pid": 75428,
+      "stopped": true
+    },
+    "forge-gateway": {
+      "pid": 75451,
+      "stopped": true
+    }
+  },
+  "remainingListeningPorts": []
+}

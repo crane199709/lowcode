@@ -139,4 +139,4 @@ Status: claimed
 
 ## 11. 已知临时措施
 
-- `lowcode-sub-app/pnpm-workspace.yaml` 用 `overrides` 指向 `.forge-packages/` 中按平台源码打包的 `@crane199709/*@0.1.0`，因 npm 上的同版本早于平台脚手架规范改动。平台发布新版本后删除 overrides 与 `.forge-packages/`。
+- `lowcode-sub-app/pnpm-workspace.yaml` 用 `overrides` 指向 `.forge-packages/` 中按平台源码打包的 `@crane199709/*@0.2.0-SNAPSHOT`，因包含当前脚手架规范的正式版本尚未发布；必须与实际 Shell 的共享版本一致（平台反馈 01）。平台发布新版本后删除 overrides 与 `.forge-packages/`。

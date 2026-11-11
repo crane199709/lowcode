@@ -1,0 +1,22 @@
+{
+  "forge-iam": {
+    "ip": "127.0.0.1",
+    "port": 18101,
+    "healthy": true
+  },
+  "forge-platform": {
+    "ip": "127.0.0.1",
+    "port": 18102,
+    "healthy": true
+  },
+  "lowcode-service": {
+    "ip": "127.0.0.1",
+    "port": 18202,
+    "healthy": true
+  },
+  "forge-gateway": {
+    "ip": "127.0.0.1",
+    "port": 18000,
+    "healthy": true
+  }
+}

@@ -5,20 +5,20 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.1.0.tgz
-  '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.1.0.tgz
-  '@crane199709/sub-app-kit': file:../.forge-packages/crane199709-sub-app-kit-0.1.0.tgz
+  '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz
+  '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz
+  '@crane199709/sub-app-kit': file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz
 
 importers:
 
   .:
     dependencies:
       '@crane199709/sdk':
-        specifier: file:../.forge-packages/crane199709-sdk-0.1.0.tgz
-        version: file:../.forge-packages/crane199709-sdk-0.1.0.tgz(vue@3.5.44(typescript@5.9.3))
+        specifier: file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz
+        version: file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3))
       '@crane199709/ui':
-        specifier: file:../.forge-packages/crane199709-ui-0.1.0.tgz
-        version: file:../.forge-packages/crane199709-ui-0.1.0.tgz(@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.1.0.tgz(vue@3.5.44(typescript@5.9.3)))(element-plus@2.14.7(vue@3.5.44(typescript@5.9.3)))(vue-i18n@11.4.16(vue@3.5.44(typescript@5.9.3)))(vue@3.5.44(typescript@5.9.3))
+        specifier: file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz
+        version: file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz(@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3)))(element-plus@2.14.7(vue@3.5.44(typescript@5.9.3)))(vue-i18n@11.4.16(vue@3.5.44(typescript@5.9.3)))(vue@3.5.44(typescript@5.9.3))
       echarts:
         specifier: 6.1.0
         version: 6.1.0
@@ -39,8 +39,8 @@ importers:
         version: 5.4.0(@vue/compiler-sfc@3.5.45)(pinia@4.1.0(@vue/devtools-api@8.2.1)(typescript@5.9.3)(vue@3.5.44(typescript@5.9.3)))(rolldown@1.2.18)(vite@8.3.5)(vue@3.5.44(typescript@5.9.3))
     devDependencies:
       '@crane199709/sub-app-kit':
-        specifier: file:../.forge-packages/crane199709-sub-app-kit-0.1.0.tgz
-        version: file:../.forge-packages/crane199709-sub-app-kit-0.1.0.tgz(28296263b137b311588c8e3a61edf29f)
+        specifier: file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz
+        version: file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz(44b827c8c6b64b16ea85be1952d2adcd)
       '@module-federation/vite':
         specifier: 1.23.5
         version: 1.23.5(typescript@5.9.3)(vite@8.3.5)(vue-tsc@3.3.13(typescript@5.9.3))
@@ -105,19 +105,19 @@ packages:
     resolution: {integrity: sha512-8V8aSTDx012YPmDQF30vrokyxVFdRAU2YBS2VzrnfLAGkP8floVnjckwgFcD0Jrvf6GWMSRdCrYVsk3tyMwZRg==}
     engines: {node: ^22.18.0 || >=24.11.0}
 
-  '@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.1.0.tgz':
-    resolution: {integrity: sha512-Kxe5lrq5czPk/d/KJ09wsecUZwuzem4q+BrqP5F1RRrAOH/9Nl0lrVC2kPtn7oJONbv8wUPKgVOtMX8Z677H+Q==, tarball: file:../.forge-packages/crane199709-sdk-0.1.0.tgz}
-    version: 0.1.0
+  '@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz':
+    resolution: {integrity: sha512-vPx+OY+L5SH67uz/Tr1c8lCaHfFC9VXHyE5jgkvpgAThaleUzXOlVGufxhg9LxG2XY+WgcmRtVvMjCnLWIdcsQ==, tarball: file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz}
+    version: 0.2.0-SNAPSHOT
     peerDependencies:
       vue: ^3.5.44
 
-  '@crane199709/sub-app-kit@file:../.forge-packages/crane199709-sub-app-kit-0.1.0.tgz':
-    resolution: {integrity: sha512-JLC9Pws74rNUlnURQgBX5mmAN1tiuR4PHwjyRgFqqFRkEQQRbuZhMQl6ws62KxJkTHjsdfgccaXHIyi5nL4H3A==, tarball: file:../.forge-packages/crane199709-sub-app-kit-0.1.0.tgz}
-    version: 0.1.0
+  '@crane199709/sub-app-kit@file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz':
+    resolution: {integrity: sha512-6jzJ8g2krgeJTB5eLf0OnQbG2aQtE2tHopYDdqSQLgOB0aWxVZJjBOr69PxOwxMkkM4E5o9fu89SKEd+v5J/nw==, tarball: file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz}
+    version: 0.2.0-SNAPSHOT
     hasBin: true
     peerDependencies:
-      '@crane199709/sdk': 0.1.0
-      '@crane199709/ui': 0.1.0
+      '@crane199709/sdk': 0.2.0-SNAPSHOT
+      '@crane199709/ui': 0.2.0-SNAPSHOT
       '@module-federation/vite': 1.23.5
       '@vitejs/plugin-vue': 6.0.10
       element-plus: 2.14.7
@@ -129,11 +129,11 @@ packages:
       vue-i18n: 11.4.16
       vue-router: 5.4.0
 
-  '@crane199709/ui@file:../.forge-packages/crane199709-ui-0.1.0.tgz':
-    resolution: {integrity: sha512-a+DnPgQRg3Eo4WyUMapAu/xksKC2ewqbbHlpDGCEjHYGpRSbpCGLru9YbWIPYk55Fx7E0Fn0YU6VZtV8mpcKJg==, tarball: file:../.forge-packages/crane199709-ui-0.1.0.tgz}
-    version: 0.1.0
+  '@crane199709/ui@file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz':
+    resolution: {integrity: sha512-luMcc9oPcyudHhN0LS2YZQCzFrCbD6O8c/Ds1lbaSNCVlDUcXHw23gIn9b7pBwPB1Cqbebv0QUDci3jQaCM/jQ==, tarball: file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz}
+    version: 0.2.0-SNAPSHOT
     peerDependencies:
-      '@crane199709/sdk': 0.1.0
+      '@crane199709/sdk': 0.2.0-SNAPSHOT
       element-plus: ^2.14.7
       vue: ^3.5.44
       vue-i18n: ^11.4.16
@@ -1056,14 +1056,14 @@ snapshots:
       '@babel/helper-string-parser': 8.0.8
       '@babel/helper-validator-identifier': 8.0.6
 
-  '@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.1.0.tgz(vue@3.5.44(typescript@5.9.3))':
+  '@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3))':
     dependencies:
       vue: 3.5.44(typescript@5.9.3)
 
-  '@crane199709/sub-app-kit@file:../.forge-packages/crane199709-sub-app-kit-0.1.0.tgz(28296263b137b311588c8e3a61edf29f)':
+  '@crane199709/sub-app-kit@file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz(44b827c8c6b64b16ea85be1952d2adcd)':
     dependencies:
-      '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.1.0.tgz(vue@3.5.44(typescript@5.9.3))
-      '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.1.0.tgz(@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.1.0.tgz(vue@3.5.44(typescript@5.9.3)))(element-plus@2.14.7(vue@3.5.44(typescript@5.9.3)))(vue-i18n@11.4.16(vue@3.5.44(typescript@5.9.3)))(vue@3.5.44(typescript@5.9.3))
+      '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3))
+      '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz(@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3)))(element-plus@2.14.7(vue@3.5.44(typescript@5.9.3)))(vue-i18n@11.4.16(vue@3.5.44(typescript@5.9.3)))(vue@3.5.44(typescript@5.9.3))
       '@module-federation/vite': 1.23.5(typescript@5.9.3)(vite@8.3.5)(vue-tsc@3.3.13(typescript@5.9.3))
       '@vitejs/plugin-vue': 6.0.10(vite@8.3.5)(vue@3.5.44(typescript@5.9.3))
       element-plus: 2.14.7(vue@3.5.44(typescript@5.9.3))
@@ -1075,9 +1075,9 @@ snapshots:
       vue-i18n: 11.4.16(vue@3.5.44(typescript@5.9.3))
       vue-router: 5.4.0(@vue/compiler-sfc@3.5.45)(pinia@4.1.0(@vue/devtools-api@8.2.1)(typescript@5.9.3)(vue@3.5.44(typescript@5.9.3)))(rolldown@1.2.18)(vite@8.3.5)(vue@3.5.44(typescript@5.9.3))
 
-  '@crane199709/ui@file:../.forge-packages/crane199709-ui-0.1.0.tgz(@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.1.0.tgz(vue@3.5.44(typescript@5.9.3)))(element-plus@2.14.7(vue@3.5.44(typescript@5.9.3)))(vue-i18n@11.4.16(vue@3.5.44(typescript@5.9.3)))(vue@3.5.44(typescript@5.9.3))':
+  '@crane199709/ui@file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz(@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3)))(element-plus@2.14.7(vue@3.5.44(typescript@5.9.3)))(vue-i18n@11.4.16(vue@3.5.44(typescript@5.9.3)))(vue@3.5.44(typescript@5.9.3))':
     dependencies:
-      '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.1.0.tgz(vue@3.5.44(typescript@5.9.3))
+      '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3))
       element-plus: 2.14.7(vue@3.5.44(typescript@5.9.3))
       vue: 3.5.44(typescript@5.9.3)
       vue-i18n: 11.4.16(vue@3.5.44(typescript@5.9.3))
