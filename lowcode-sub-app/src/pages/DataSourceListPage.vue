@@ -11,6 +11,7 @@ import {
   formatDateTime,
   type ErrorTip,
 } from '@crane199709/ui'
+import DataSourceDetailDrawer from './DataSourceDetailDrawer.vue'
 import DataSourceFormDrawer from './DataSourceFormDrawer.vue'
 import { errorTip, sourceAddress, typeLabels, type DataSource } from './data-source'
 
@@ -27,6 +28,7 @@ const { t } = useI18n({
       updatedAt: '更新时间',
       actions: '操作',
       edit: '编辑',
+      browse: '浏览表',
       delete: '删除',
       empty: '暂无数据源',
       failed: '数据源加载失败，请稍后重试',
@@ -42,11 +44,14 @@ const { t } = useI18n({
 const client = useTenantClient()
 const access = useAccessControl()
 // 操作列是表格结构的一部分，v-perm 只能隐藏元素、去不掉列，因此按权限条件渲染；接口仍由后端校验权限。
+const canView = computed(() => access.has('datasource:view'))
 const canManage = computed(() => access.has('datasource:manage'))
 const dataSources = ref<Page<DataSource> | null>(null)
 const busy = ref(false)
 const error = ref<ErrorTip | null>(null)
 const drawerOpen = ref(false)
+const detailOpen = ref(false)
+const viewing = ref<DataSource | null>(null)
 const editing = ref<DataSource | null>(null)
 
 async function load(page = dataSources.value?.page.number ?? 1) {
@@ -60,6 +65,11 @@ async function load(page = dataSources.value?.page.number ?? 1) {
   } finally {
     busy.value = false
   }
+}
+
+function openDetails(row: DataSource) {
+  viewing.value = row
+  detailOpen.value = true
 }
 
 function openForm(row: DataSource | null) {
@@ -101,32 +111,45 @@ onMounted(() => load())
     </PageToolbar>
     <ErrorAlert v-if="error" :tip="error" />
     <ListPage :page="dataSources" :loading="busy" :empty-text="t('empty')" @page-change="load">
-      <el-table-column :label="t('name')" min-width="180" show-overflow-tooltip prop="name" />
+      <el-table-column :label="t('name')" min-width="160" show-overflow-tooltip prop="name" />
       <el-table-column :label="t('type')" width="110">
         <template #default="{ row }">{{
           typeLabels[row.type as DataSource['type']] ?? row.type
         }}</template>
       </el-table-column>
-      <el-table-column :label="t('address')" min-width="240" show-overflow-tooltip>
+      <el-table-column :label="t('address')" min-width="210" show-overflow-tooltip>
         <template #default="{ row }">{{ sourceAddress(row as DataSource) || '—' }}</template>
       </el-table-column>
-      <el-table-column :label="t('username')" min-width="120" show-overflow-tooltip>
+      <el-table-column :label="t('username')" min-width="110" show-overflow-tooltip>
         <template #default="{ row }">{{ row.username || '—' }}</template>
       </el-table-column>
       <el-table-column :label="t('updatedAt')" width="180">
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
-      <el-table-column v-if="canManage" :label="t('actions')" width="120" fixed="right">
+      <el-table-column
+        v-if="canView || canManage"
+        :label="t('actions')"
+        :width="canManage ? 190 : 90"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button link type="primary" @click="openForm(row as DataSource)">{{
+          <el-button
+            v-if="canView && row.type !== 'API'"
+            link
+            type="primary"
+            @click="openDetails(row as DataSource)"
+            >{{ t('browse') }}</el-button
+          >
+          <el-button v-if="canManage" link type="primary" @click="openForm(row as DataSource)">{{
             t('edit')
           }}</el-button>
-          <el-button link type="danger" @click="remove(row as DataSource)">{{
+          <el-button v-if="canManage" link type="danger" @click="remove(row as DataSource)">{{
             t('delete')
           }}</el-button>
         </template>
       </el-table-column>
     </ListPage>
+    <DataSourceDetailDrawer v-model="detailOpen" :source="viewing" />
     <DataSourceFormDrawer v-model="drawerOpen" :editing="editing" @saved="load()" />
   </section>
 </template>

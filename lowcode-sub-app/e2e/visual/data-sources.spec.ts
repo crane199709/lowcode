@@ -128,12 +128,19 @@ for (const [label, width, height] of viewports) {
       await expect(page).toHaveScreenshot(`datasources-empty-${label}.png`)
     })
 
-    test('只读成员看不到新增与操作列', async ({ page }) => {
+    test('只读成员可浏览数据库表但不能编辑', async ({ page }) => {
       await mockList(page, items)
       await open(page, 'datasources', ['datasource:view'])
       await expect(page.getByText('仓储库存')).toBeVisible()
       await expect(page.getByRole('button', { name: '新增' })).toHaveCount(0)
       await expect(page.getByRole('button', { name: '编辑' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: '浏览表' })).toHaveCount(5)
+      await expect(
+        page
+          .getByRole('row')
+          .filter({ hasText: '区域销售汇总接口' })
+          .getByRole('button', { name: '浏览表' }),
+      ).toHaveCount(0)
       await expect(page).toHaveScreenshot(`datasources-readonly-${label}.png`)
     })
 

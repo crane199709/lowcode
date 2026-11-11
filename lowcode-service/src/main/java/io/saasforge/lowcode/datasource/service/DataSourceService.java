@@ -7,8 +7,10 @@ import io.saasforge.lowcode.datasource.model.ApiAuthType;
 import io.saasforge.lowcode.datasource.model.ApiConnectionTestResponse;
 import io.saasforge.lowcode.datasource.model.ApiMethod;
 import io.saasforge.lowcode.datasource.model.ApiSettings;
+import io.saasforge.lowcode.datasource.model.ColumnResponse;
 import io.saasforge.lowcode.datasource.model.ConnectionSettings;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
+import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.web.PageQuery;
 import java.net.InetAddress;
@@ -118,6 +120,39 @@ public class DataSourceService {
 
     public List<DataSource> list(PageQuery query) {
         return dataSourceMapper.selectPage(query.size(), query.offset());
+    }
+
+    public List<TableResponse> tables(UUID id) {
+        DataSource saved = get(id);
+        DataSourceType type = DataSourceType.valueOf(saved.getType());
+        ConnectionSettings settings = metadataSettings(saved, type);
+        return connector.tables(type, metadataAddress(settings), settings);
+    }
+
+    public List<ColumnResponse> columns(UUID id, TableResponse table) {
+        DataSource saved = get(id);
+        DataSourceType type = DataSourceType.valueOf(saved.getType());
+        ConnectionSettings settings = metadataSettings(saved, type);
+        return connector.columns(type, metadataAddress(settings), settings, table);
+    }
+
+    private ConnectionSettings metadataSettings(DataSource saved, DataSourceType type) {
+        if (type == DataSourceType.API) throw new ForgeException(DataSourceErrorCode.METADATA_NOT_SUPPORTED);
+        var settings = new ConnectionSettings(
+                saved.getHost(),
+                saved.getPort(),
+                saved.getDatabaseName(),
+                saved.getUsername(),
+                secretCipher.decrypt(saved.getPasswordEncrypted()),
+                paramsOf(saved));
+        checkConnectionFields(type, settings);
+        return settings;
+    }
+
+    private InetAddress metadataAddress(ConnectionSettings settings) {
+        List<InetAddress> addresses = networkGuard.resolve(settings.host());
+        if (addresses.isEmpty()) throw unreachable();
+        return addresses.get(0);
     }
 
     public long count() {

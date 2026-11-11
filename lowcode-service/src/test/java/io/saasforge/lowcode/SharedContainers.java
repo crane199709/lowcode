@@ -1,6 +1,7 @@
 package io.saasforge.lowcode;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
@@ -68,6 +69,73 @@ final class SharedContainers {
                 container.getHost(), container.getMappedPort(5432), "forge", EXTERNAL_USER, EXTERNAL_PASSWORD);
     }
 
+    /** 外部元数据夹具与应用数据库隔离，脚本由各数据库自带客户端执行。 */
+    static ExternalDatabase externalMetadata(String type) {
+        ExternalDatabase external = switch (type) {
+            case "POSTGRESQL" -> externalPostgres();
+            case "MYSQL" -> externalMysql();
+            case "SQLSERVER" -> externalSqlServer();
+            case "ORACLE" -> externalOracle();
+            default -> throw new IllegalArgumentException(type);
+        };
+        JdbcDatabaseContainer<?> container = switch (type) {
+            case "POSTGRESQL" -> PostgresHolder.CONTAINER;
+            case "MYSQL" -> MysqlHolder.CONTAINER;
+            case "SQLSERVER" -> SqlServerHolder.CONTAINER;
+            case "ORACLE" -> OracleHolder.CONTAINER;
+            default -> throw new IllegalArgumentException(type);
+        };
+        container.copyFileToContainer(
+                MountableFile.forClasspathResource("metadata/" + type.toLowerCase(Locale.ROOT) + ".sql"),
+                "/tmp/metadata.sql");
+        switch (type) {
+            case "POSTGRESQL" ->
+                exec(
+                        container,
+                        "psql",
+                        "-U",
+                        "test",
+                        "-d",
+                        "forge",
+                        "-v",
+                        "ON_ERROR_STOP=1",
+                        "-f",
+                        "/tmp/metadata.sql");
+            case "MYSQL" ->
+                exec(
+                        container,
+                        "mysql",
+                        "-u" + external.username(),
+                        "-p" + external.password(),
+                        external.database(),
+                        "-e",
+                        "source /tmp/metadata.sql");
+            case "SQLSERVER" ->
+                exec(
+                        container,
+                        "/opt/mssql-tools18/bin/sqlcmd",
+                        "-S",
+                        "localhost",
+                        "-U",
+                        external.username(),
+                        "-P",
+                        external.password(),
+                        "-C",
+                        "-b",
+                        "-i",
+                        "/tmp/metadata.sql");
+            case "ORACLE" ->
+                exec(
+                        container,
+                        "sqlplus",
+                        "-L",
+                        external.username() + "/" + external.password() + "@localhost:1521/" + external.database(),
+                        "@/tmp/metadata.sql");
+            default -> throw new IllegalArgumentException(type);
+        }
+        return external;
+    }
+
     private static final String EXTERNAL_USER = "tenant_reader";
     // 同时满足 SQL Server 的密码复杂度要求
     private static final String EXTERNAL_PASSWORD = "Ext3rnal-Secr3t";
@@ -107,7 +175,8 @@ final class SharedContainers {
         try {
             ExecResult result = container.execInContainer(command);
             if (result.getExitCode() != 0) {
-                throw new IllegalStateException(String.join(" ", command) + " failed: " + result.getStderr());
+                throw new IllegalStateException(
+                        String.join(" ", command) + " failed: " + result.getStdout() + result.getStderr());
             }
         } catch (IOException error) {
             throw new IllegalStateException(error);

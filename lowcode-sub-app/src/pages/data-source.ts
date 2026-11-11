@@ -29,6 +29,17 @@ export interface DataSource {
   updatedAt: string
 }
 
+export interface SourceTable {
+  catalog: string
+  schema: string
+  name: string
+}
+
+export interface SourceColumn {
+  name: string
+  type: string
+}
+
 export interface DatabaseConnectionInput {
   host: string
   port: number

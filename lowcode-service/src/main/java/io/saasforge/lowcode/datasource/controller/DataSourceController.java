@@ -4,8 +4,10 @@ import io.saasforge.lowcode.datasource.entity.DataSource;
 import io.saasforge.lowcode.datasource.model.ApiAuthType;
 import io.saasforge.lowcode.datasource.model.ApiConnectionTestResponse;
 import io.saasforge.lowcode.datasource.model.ApiMethod;
+import io.saasforge.lowcode.datasource.model.ColumnResponse;
 import io.saasforge.lowcode.datasource.model.DataSourceRequest;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
+import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.lowcode.datasource.service.DataSourceService;
 import io.saasforge.sdk.audit.AuditLog;
 import io.saasforge.sdk.core.api.ApiResponse;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -62,6 +65,24 @@ class DataSourceController {
     @RequiresPermission("datasource:view")
     public ApiResponse<DataSourceResponse> get(@PathVariable UUID id) {
         return ApiResponse.ok(response(dataSourceService.get(id)));
+    }
+
+    @Operation(summary = "浏览当前数据库账号可见的表与 schema")
+    @GetMapping("/{id}/tables")
+    @RequiresPermission("datasource:view")
+    public ApiResponse<List<TableResponse>> tables(@PathVariable UUID id) {
+        return ApiResponse.ok(dataSourceService.tables(id));
+    }
+
+    @Operation(summary = "按精确的 catalog、schema、表名浏览列名与数据库类型")
+    @GetMapping("/{id}/columns")
+    @RequiresPermission("datasource:view")
+    public ApiResponse<List<ColumnResponse>> columns(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "") String catalog,
+            @RequestParam(defaultValue = "") String schema,
+            @RequestParam String table) {
+        return ApiResponse.ok(dataSourceService.columns(id, new TableResponse(catalog, schema, table)));
     }
 
     @Operation(summary = "修改数据源，密码与请求头值留空表示不修改")

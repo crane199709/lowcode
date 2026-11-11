@@ -2,6 +2,7 @@ package io.saasforge.lowcode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -32,8 +33,8 @@ class DataSourceDialectTest {
     static final SharedContainers.Postgres postgres = SharedContainers.postgres();
     static final SharedContainers.Redis redis = SharedContainers.redis();
     // 在类加载时启动：首次拉取镜像可能耗时很久，放到用例中启动会让用例开始前签发的令牌过期
-    static final SharedContainers.ExternalDatabase mysql = SharedContainers.externalMysql();
-    static final SharedContainers.ExternalDatabase sqlServer = SharedContainers.externalSqlServer();
+    static final SharedContainers.ExternalDatabase mysql = SharedContainers.externalMetadata("MYSQL");
+    static final SharedContainers.ExternalDatabase sqlServer = SharedContainers.externalMetadata("SQLSERVER");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -192,17 +193,55 @@ class DataSourceDialectTest {
         return (Map<String, Object>) body.get("database");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"MYSQL", "SQLSERVER"})
+    void browsesTablesAndColumnsUsingExactNames(String type) {
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request(type))
+                        .get("data"))
+                .get("id");
+        var database = external(type);
+        String schema = type.equals("MYSQL") ? database.database() : "dbo";
+        var tables = exchange(HttpMethod.GET, "/data-sources/" + id + "/tables", null);
+        assertThat(tables.get("code")).isEqualTo("ok");
+        assertThat((List<Map<String, Object>>) tables.get("data"))
+                .contains(Map.of("catalog", database.database(), "schema", schema, "name", "LC_META_ORDER_%"));
+        var columns = exchange(
+                HttpMethod.GET,
+                "/data-sources/" + id + "/columns?catalog=" + database.database() + "&schema=" + schema
+                        + "&table=LC_META_ORDER_%25",
+                null);
+        assertThat(columns.get("code")).isEqualTo("ok");
+        assertThat((List<Map<String, Object>>) columns.get("data"))
+                .containsExactly(
+                        Map.of("name", "order_id", "type", type.equals("MYSQL") ? "INT" : "int"),
+                        Map.of("name", "amount", "type", type.equals("MYSQL") ? "DECIMAL" : "decimal"));
+    }
+
+    @Test
+    void sqlServerBracketNamesCannotMatchOtherTables() {
+        String id = (String) ((Map<?, ?>) exchange(HttpMethod.POST, "/data-sources", request("SQLSERVER"))
+                        .get("data"))
+                .get("id");
+        var columns = exchange(
+                HttpMethod.GET,
+                "/data-sources/" + id + "/columns?catalog=master&schema=dbo&table=LC_META_%5BAB%5D",
+                null);
+        assertThat(columns.get("code")).isEqualTo("ok");
+        assertThat((List<Map<String, Object>>) columns.get("data"))
+                .containsExactly(Map.of("name", "bracket_id", "type", "int"));
+    }
+
     private Object test(Map<String, Object> body) {
         return exchange(HttpMethod.POST, "/data-sources/connection-test", body).get("code");
     }
 
     private Map<?, ?> exchange(HttpMethod method, String uri, Object body) {
-        return RestClient.create("http://localhost:" + port)
+        var request = RestClient.create("http://localhost:" + port)
                 .method(method)
-                .uri(uri)
+                .uri(URI.create("http://localhost:" + port + uri))
                 .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .exchange((request, response) -> response.bodyTo(Map.class));
+                .contentType(MediaType.APPLICATION_JSON);
+        if (body != null) request = request.body(body);
+        return request.exchange((req, response) -> response.bodyTo(Map.class));
     }
 }

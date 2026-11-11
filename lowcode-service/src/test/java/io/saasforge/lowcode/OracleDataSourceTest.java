@@ -2,8 +2,10 @@ package io.saasforge.lowcode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -29,7 +31,7 @@ import org.springframework.web.client.RestClient;
 class OracleDataSourceTest {
     static final SharedContainers.Postgres postgres = SharedContainers.postgres();
     static final SharedContainers.Redis redis = SharedContainers.redis();
-    static final SharedContainers.ExternalDatabase external = SharedContainers.externalOracle();
+    static final SharedContainers.ExternalDatabase external = SharedContainers.externalMetadata("ORACLE");
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
@@ -123,17 +125,43 @@ class OracleDataSourceTest {
         return (Map<String, Object>) body.get("database");
     }
 
+    @Test
+    void browsesTablesAndColumnsUsingExactNames() {
+        String id = (String) ((Map<?, ?>)
+                        exchange(HttpMethod.POST, "/data-sources", request()).get("data"))
+                .get("id");
+        var tables = exchange(HttpMethod.GET, "/data-sources/" + id + "/tables", null);
+        assertThat(tables.get("code")).isEqualTo("ok");
+        assertThat((List<Map<String, Object>>) tables.get("data"))
+                .contains(Map.of(
+                        "catalog",
+                        "",
+                        "schema",
+                        external.username().toUpperCase(Locale.ROOT),
+                        "name",
+                        "LC_META_ORDER_%"));
+        var columns = exchange(
+                HttpMethod.GET,
+                "/data-sources/" + id + "/columns?schema=" + external.username().toUpperCase(Locale.ROOT)
+                        + "&table=LC_META_ORDER_%25",
+                null);
+        assertThat(columns.get("code")).isEqualTo("ok");
+        assertThat((List<Map<String, Object>>) columns.get("data"))
+                .containsExactly(
+                        Map.of("name", "ORDER_ID", "type", "NUMBER"), Map.of("name", "AMOUNT", "type", "NUMBER"));
+    }
+
     private Object test(Map<String, Object> body) {
         return exchange(HttpMethod.POST, "/data-sources/connection-test", body).get("code");
     }
 
     private Map<?, ?> exchange(HttpMethod method, String uri, Object body) {
-        return RestClient.create("http://localhost:" + port)
+        var request = RestClient.create("http://localhost:" + port)
                 .method(method)
-                .uri(uri)
+                .uri(URI.create("http://localhost:" + port + uri))
                 .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .exchange((request, response) -> response.bodyTo(Map.class));
+                .contentType(MediaType.APPLICATION_JSON);
+        if (body != null) request = request.body(body);
+        return request.exchange((req, response) -> response.bodyTo(Map.class));
     }
 }

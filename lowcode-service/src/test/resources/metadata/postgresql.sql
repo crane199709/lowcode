@@ -1,0 +1,12 @@
+CREATE SCHEMA browse_meta;
+CREATE SCHEMA browse_other;
+CREATE SCHEMA browse_locked;
+CREATE TABLE browse_meta."order_%" (order_id integer, amount numeric(12, 2));
+CREATE TABLE browse_meta.order_ax (wrong_column text);
+CREATE TABLE browse_other."order_%" (other_id bigint);
+CREATE TABLE browse_meta.hidden_orders (secret text);
+CREATE TABLE browse_locked.locked_orders (secret text);
+GRANT USAGE ON SCHEMA browse_meta, browse_other TO tenant_reader;
+GRANT SELECT ON browse_meta."order_%", browse_meta.order_ax, browse_other."order_%", browse_locked.locked_orders TO tenant_reader;
+CREATE TABLE browse_meta.partitioned_orders (order_id integer) PARTITION BY RANGE (order_id);
+GRANT SELECT ON browse_meta.partitioned_orders TO tenant_reader;
