@@ -4,7 +4,7 @@
 
 **Blocked by:** 06, 09
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] 服务端在 Dataset 查询外层生成分组聚合查询（本工单实现 PostgreSQL 方言）
 - [ ] 聚合：求和、平均、计数、去重计数、最大、最小；排序与 Top N

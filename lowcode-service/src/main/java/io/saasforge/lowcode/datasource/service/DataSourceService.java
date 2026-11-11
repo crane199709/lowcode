@@ -164,6 +164,17 @@ public class DataSourceService {
         return apiDatasets.preview(apiConnector.fetch(target.settings(), target.addresses()), path);
     }
 
+    DatasetPreviewResponse aggregate(UUID id, String sql, DatasetQueryService.Query query) {
+        DataSource saved = get(id);
+        DataSourceType type = DataSourceType.valueOf(saved.getType());
+        if (type != DataSourceType.POSTGRESQL) {
+            throw new ForgeException(DatasetErrorCode.SOURCE_NOT_SUPPORTED);
+        }
+        String normalized = SqlQueryGuard.check(sql, type);
+        ConnectionSettings settings = metadataSettings(saved, type);
+        return connector.aggregate(type, metadataAddress(settings), settings, normalized, query);
+    }
+
     public DatasetPreviewResponse previewSql(UUID id, String sql) {
         DataSource saved = get(id);
         DataSourceType type = DataSourceType.valueOf(saved.getType());

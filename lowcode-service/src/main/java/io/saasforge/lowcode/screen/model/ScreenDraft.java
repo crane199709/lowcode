@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import tools.jackson.databind.JsonNode;
 
 /** Design Resolution 与 Widget 坐标均为设计像素；修改分辨率不换算已有坐标。 */
@@ -43,7 +44,7 @@ public record ScreenDraft(
 
     public record Widget(
             @NotBlank @Size(max = 80) String id,
-            @NotNull @Pattern(regexp = "TEXT") String type,
+            @NotNull @Pattern(regexp = "TEXT|BAR") String type,
             @Min(0) @Max(7680) int x,
             @Min(0) @Max(7680) int y,
             @Min(1) @Max(7680) int width,
@@ -51,9 +52,25 @@ public record ScreenDraft(
             @Min(0) @Max(10000) int zIndex,
             @NotNull JsonNode config) {
         // config 保留按 Widget 类型演进的接口，但已支持类型必须在保存前验证，不能把坏配置留给渲染器。
-        @AssertTrue(message = "文本卡配置无效")
+        @AssertTrue(message = "组件配置无效")
         @JsonIgnore
         public boolean isValidConfig() {
+            if ("BAR".equals(type)) {
+                if (config == null
+                        || !config.isObject()
+                        || !config.path("datasetId").isString()
+                        || !config.path("refreshSeconds").isIntegralNumber()
+                        || !config.path("refreshSeconds").canConvertToInt()) {
+                    return false;
+                }
+                int refresh = config.path("refreshSeconds").asInt();
+                try {
+                    UUID.fromString(config.path("datasetId").asString());
+                } catch (IllegalArgumentException e) {
+                    return false;
+                }
+                return (refresh == 0 || refresh >= 10) && config.path("query").isObject();
+            }
             if (!"TEXT".equals(type) || config == null) {
                 return true;
             }
