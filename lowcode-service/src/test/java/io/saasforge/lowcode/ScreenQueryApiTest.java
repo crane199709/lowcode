@@ -60,6 +60,14 @@ class ScreenQueryApiTest {
     }
 
     @Test
+    void dateGroupingRequiresACurrentDateField() {
+        String dataset = dataset(SALES);
+        var q = query(List.of(Map.of("field", "region", "dateGrouping", "DAY")), List.of(measure("amount", "SUM")));
+        String screen = screen(dataset, query(List.of(), List.of(measure("amount", "SUM"))));
+        assertThat(preview(screen, dataset, q).get("code")).isEqualTo("dataset.queryInvalid");
+    }
+
+    @Test
     void publishedBarAggregatesAllRowsWithEveryAggregation() {
         String dataset = dataset(SALES);
         var query = query(

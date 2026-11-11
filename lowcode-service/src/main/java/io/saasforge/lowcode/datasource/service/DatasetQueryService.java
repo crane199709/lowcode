@@ -58,8 +58,15 @@ public class DatasetQueryService {
         dataset.fields().forEach(field -> fields.put(field.name(), field));
         List<Column> columns = new ArrayList<>();
         for (int i = 0; i < query.dimensions().size(); i++) {
-            var field = field(fields, query.dimensions().get(i).field());
-            columns.add(new Column("d" + i, field.displayName(), field.type().name()));
+            var dimension = query.dimensions().get(i);
+            var field = field(fields, dimension.field());
+            if (dimension.dateGrouping() != null && !field.date()) {
+                throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
+            }
+            columns.add(new Column(
+                    "d" + i,
+                    field.displayName(),
+                    dimension.dateGrouping() == null ? field.type().name() : "STRING"));
         }
         for (int i = 0; i < query.measures().size(); i++) {
             var measure = query.measures().get(i);
@@ -185,7 +192,17 @@ public class DatasetQueryService {
     public record Query(
             List<Dimension> dimensions, List<Measure> measures, List<Filter> filters, List<Sort> sorts, Integer topN) {}
 
-    public record Dimension(String field) {}
+    public record Dimension(String field, DateGrouping dateGrouping) {
+        public Dimension(String field) {
+            this(field, null);
+        }
+    }
+
+    public enum DateGrouping {
+        DAY,
+        MONTH,
+        YEAR
+    }
 
     public record Measure(String field, Aggregation aggregation) {}
 
