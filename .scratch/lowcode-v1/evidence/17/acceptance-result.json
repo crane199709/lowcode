@@ -1,0 +1,29 @@
+{
+  "tenantId": "01a1cad6-1a7d-7150-ac8e-13c1b7b34dea",
+  "screenId": "01a1cad6-40c9-796f-94db-ec3b9c5f932e",
+  "dataSourceId": "01a1cad6-359b-7fe3-9faa-b281d14f77c0",
+  "datasetId": "01a1cad6-3bb7-74b3-b56e-b3c4d73f20a6",
+  "queryRows": [
+    [
+      "华东",
+      200
+    ],
+    [
+      "华南",
+      60
+    ]
+  ],
+  "knownPlatformBaseline": "08: Shell HomePage /demo/context 403 (exact URL and actual response observed)",
+  "checks": [
+    "realOperatorUI",
+    "realTenantShell",
+    "realMQProvisioning",
+    "realNacosLB",
+    "realAuditConsumption",
+    "realS3Image",
+    "viewerPlayback",
+    "noPermission403",
+    "selfScopeEmptyAnd404",
+    "realmBoundary"
+  ]
+}

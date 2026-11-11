@@ -1,0 +1,4 @@
+lowcode_app|f|f
+lowcode_migrator|f|f
+lowcode|lowcode_migrator
+lowcode_migrator

@@ -1,0 +1,8 @@
+真实平台公开 GET tenant detail，90 秒持续返回：
+forge-iam:succeeded
+lowcode-service:pending
+
+预期两项均 succeeded，实际断言失败。
+来源：/private/tmp/lowcode-platform-hi11maif/playwright-red2.log
+随后仅在既有 LowcodeApplication 声明无业务预置的 TenantInitializer。
+最终新建隔离平台两项均 succeeded，完整链路通过。

@@ -1,6 +1,6 @@
-# 临时：npm 上的 @crane199709/*@0.1.0 早于脚手架规范改动，改用平台仓库当前源码打包的同版本 tarball。
+# 临时：正式版本未发布，使用与当前 Shell 同版的平台源码 snapshot tarball（平台反馈 01）。
 # 平台发布新版本后删除本文件的 overrides。
 overrides:
-  '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.1.0.tgz
-  '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.1.0.tgz
-  '@crane199709/sub-app-kit': file:../.forge-packages/crane199709-sub-app-kit-0.1.0.tgz
+  '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz
+  '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz
+  '@crane199709/sub-app-kit': file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz
