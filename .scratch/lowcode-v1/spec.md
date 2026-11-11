@@ -1,6 +1,6 @@
 # 低代码一期：数据源与大屏规格
 
-Status: needs-triage
+Status: claimed
 
 术语以 [GLOSSARY.md](../../GLOSSARY.md) 为准，平台术语以 SaaS Forge 平台定义为准。本规格的决策经 2026-11-11 的设计拷问逐条确认；架构取舍见 [ADR-0001](../../docs/adr/0001-dataset-layer-between-source-and-widget.md)、[ADR-0002](../../docs/adr/0002-structured-connection-and-blocked-networks.md)。
 
