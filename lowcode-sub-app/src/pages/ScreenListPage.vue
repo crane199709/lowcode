@@ -12,6 +12,7 @@ import {
   ElOption,
   ElSelect,
   ElTableColumn,
+  ElTag,
 } from 'element-plus'
 import { useAccessControl, useTenantClient, type Page } from '@crane199709/sdk'
 import {
@@ -30,6 +31,8 @@ const client = useTenantClient()
 const router = useRouter()
 const access = useAccessControl()
 const canEdit = computed(() => access.has('screen:edit'))
+const canPublish = computed(() => access.has('screen:publish'))
+const publishing = ref<string | null>(null)
 const screens = ref<Page<Screen> | null>(null)
 const busy = ref(false)
 const error = ref<ErrorTip | null>(null)
@@ -58,8 +61,8 @@ async function load(page = screens.value?.page.number ?? 1) {
 function openForm(row: Screen | null) {
   editing.value = row
   name.value = row?.name ?? ''
-  width.value = row?.draft.designWidth ?? 1920
-  height.value = row?.draft.designHeight ?? 1080
+  width.value = row?.draft?.designWidth ?? 1920
+  height.value = row?.draft?.designHeight ?? 1080
   const value = `${width.value}×${height.value}`
   preset.value = resolutions.includes(value) ? value : '自定义'
   error.value = null
@@ -83,7 +86,7 @@ async function save() {
   saving.value = true
   error.value = null
   try {
-    const draft = editing.value ? cloneDraft(editing.value.draft) : emptyDraft()
+    const draft = editing.value?.draft ? cloneDraft(editing.value.draft) : emptyDraft()
     draft.designWidth = width.value
     draft.designHeight = height.value
     const result = await client.api<Screen>(
@@ -106,6 +109,34 @@ async function copy(row: Screen) {
     await load(1)
   } catch (cause) {
     error.value = errorTip(cause, '复制失败，请重试')
+  }
+}
+function play(row: Screen) {
+  router.push({ name: 'lowcode:screen-playback', params: { id: row.id } })
+}
+async function publish(row: Screen) {
+  try {
+    await ElMessageBox.confirm(
+      `将「${row.name}」当前已保存的草稿发布给查看者，并覆盖上一份已发布快照。`,
+      '发布大屏',
+      {
+        confirmButtonText: '发布',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+  error.value = null
+  publishing.value = row.id
+  try {
+    await client.api(`/lowcode/screens/${row.id}/publish`, { method: 'POST' })
+    await load()
+  } catch (cause) {
+    error.value = errorTip(cause, '发布失败，请重试')
+  } finally {
+    publishing.value = null
   }
 }
 async function remove(row: Screen) {
@@ -140,7 +171,16 @@ onMounted(() => load())
       <el-table-column label="名称" min-width="240" prop="name" show-overflow-tooltip />
       <el-table-column label="设计分辨率" width="160"
         ><template #default="{ row }"
-          >{{ row.draft.designWidth }}×{{ row.draft.designHeight }}</template
+          >{{ row.designWidth ?? row.draft?.designWidth }}×{{
+            row.designHeight ?? row.draft?.designHeight
+          }}</template
+        ></el-table-column
+      >
+      <el-table-column label="发布状态" width="100"
+        ><template #default="{ row }"
+          ><el-tag :type="row.publishedAt ? 'success' : 'info'">{{
+            row.publishedAt ? '已发布' : '未发布'
+          }}</el-tag></template
         ></el-table-column
       >
       <el-table-column label="更新时间" width="180"
@@ -148,12 +188,34 @@ onMounted(() => load())
           formatDateTime(row.updatedAt)
         }}</template></el-table-column
       >
-      <el-table-column v-if="canEdit" label="操作" width="240" fixed="right"
+      <el-table-column
+        label="操作"
+        :width="canEdit ? (canPublish ? 360 : 300) : canPublish ? 140 : 80"
+        fixed="right"
         ><template #default="{ row }">
-          <el-button link type="primary" @click="edit(row as Screen)">编辑</el-button>
-          <el-button link type="primary" @click="openForm(row as Screen)">设置</el-button>
-          <el-button link type="primary" @click="copy(row as Screen)">复制</el-button>
-          <el-button link type="danger" @click="remove(row as Screen)">删除</el-button>
+          <el-button v-if="row.publishedAt" link type="primary" @click="play(row as Screen)"
+            >播放</el-button
+          >
+          <el-button
+            v-if="canPublish"
+            link
+            type="primary"
+            :loading="publishing === row.id"
+            @click="publish(row as Screen)"
+            >发布</el-button
+          >
+          <el-button v-if="canEdit" link type="primary" @click="edit(row as Screen)"
+            >编辑</el-button
+          >
+          <el-button v-if="canEdit" link type="primary" @click="openForm(row as Screen)"
+            >设置</el-button
+          >
+          <el-button v-if="canEdit" link type="primary" @click="copy(row as Screen)"
+            >复制</el-button
+          >
+          <el-button v-if="canEdit" link type="danger" @click="remove(row as Screen)"
+            >删除</el-button
+          >
         </template></el-table-column
       >
     </ListPage>

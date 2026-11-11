@@ -17,7 +17,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>不指定数据范围时按 Tenant Admin 发布，大屏为「全部」：数据权限默认拒绝，不关心数据权限的测试不能因此看不到数据。
  */
 final class TestGrants {
-    static final List<String> ALL_SCREEN_PERMISSIONS = List.of("screen:view", "screen:edit");
+    static final List<String> ALL_SCREEN_PERMISSIONS = List.of("screen:view", "screen:edit", "screen:publish");
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 

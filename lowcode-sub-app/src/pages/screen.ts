@@ -25,7 +25,10 @@ export interface ScreenDraft {
 export interface Screen {
   id: string
   name: string
-  draft: ScreenDraft
+  draft?: ScreenDraft
+  designWidth?: number
+  designHeight?: number
+  publishedAt?: string | null
   updatedAt: string | null
 }
 export const resolutions = ['1920×1080', '2560×1440', '3840×2160', '1366×768']
@@ -34,4 +37,11 @@ export function emptyDraft(): ScreenDraft {
 }
 export function cloneDraft(draft: ScreenDraft): ScreenDraft {
   return JSON.parse(JSON.stringify(draft))
+}
+
+export interface PublishedScreen {
+  id: string
+  name: string
+  definition: ScreenDraft
+  publishedAt: string
 }
