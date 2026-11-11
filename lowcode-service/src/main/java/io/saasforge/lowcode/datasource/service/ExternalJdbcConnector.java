@@ -22,15 +22,12 @@ import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.IntStream;
 import net.sf.jsqlparser.parser.CCJSqlParserConstants;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import oracle.jdbc.pool.OracleDataSource;
@@ -70,75 +67,12 @@ class ExternalJdbcConnector {
             InetAddress address,
             ConnectionSettings settings,
             String sql,
-            DatasetQueryService.Query query) {
-        List<Object> values = new ArrayList<>();
-        List<String> selections = new ArrayList<>();
-        for (int i = 0; i < query.dimensions().size(); i++) {
-            selections.add(identifier(query.dimensions().get(i).field()) + " AS d" + i);
-        }
-        for (int i = 0; i < query.measures().size(); i++) {
-            var measure = query.measures().get(i);
-            String field = identifier(measure.field());
-            String expression = measure.aggregation() == DatasetQueryService.Aggregation.COUNT_DISTINCT
-                    ? "COUNT(DISTINCT " + field + ")"
-                    : measure.aggregation().name() + "(" + field + ")";
-            selections.add(expression + " AS m" + i);
-        }
-        StringBuilder statement = new StringBuilder(
-                "SELECT " + String.join(", ", selections) + " FROM (" + postgresPreparedSql(sql) + ") dataset_rows");
-        List<String> conditions = new ArrayList<>();
-        for (var filter : query.filters()) {
-            String field = identifier(filter.field());
-            List<Object> nonNull =
-                    filter.values().stream().filter(Objects::nonNull).toList();
-            String condition;
-            if (filter.operator() == DatasetQueryService.Operator.BETWEEN) {
-                condition = field + " BETWEEN ? AND ?";
-            } else if (nonNull.isEmpty()) {
-                condition = field + " IS NULL";
-            } else {
-                condition = filter.operator() == DatasetQueryService.Operator.EQ
-                        ? field + " = ?"
-                        : field + " IN (" + String.join(",", Collections.nCopies(nonNull.size(), "?")) + ")";
-                if (nonNull.size() != filter.values().size()) {
-                    condition = "(" + condition + " OR " + field + " IS NULL)";
-                }
-            }
-            values.addAll(nonNull);
-            conditions.add(condition);
-        }
-        if (!conditions.isEmpty()) {
-            statement.append(" WHERE ").append(String.join(" AND ", conditions));
-        }
-        if (!query.dimensions().isEmpty()) {
-            statement
-                    .append(" GROUP BY ")
-                    .append(String.join(
-                            ",",
-                            IntStream.rangeClosed(1, query.dimensions().size())
-                                    .mapToObj(Integer::toString)
-                                    .toList()));
-        }
-        List<String> orders = new ArrayList<>();
-        Set<Integer> sorted = new HashSet<>();
-        for (var sort : query.sorts()) {
-            orders.add((sort.column() + 1) + " " + sort.direction() + " NULLS LAST");
-            sorted.add(sort.column());
-        }
-        // Top N 的聚合值相同时按 Dimension 决胜，避免刷新时条目跳动。
-        for (int i = 0; i < query.dimensions().size(); i++) {
-            if (!sorted.contains(i)) {
-                orders.add((i + 1) + " ASC NULLS LAST");
-            }
-        }
-        if (!orders.isEmpty()) {
-            statement.append(" ORDER BY ").append(String.join(",", orders));
-        }
-        if (query.topN() != null) {
-            statement.append(" LIMIT ?");
-            values.add(query.topN());
-        }
-        return execute(type, address, settings, statement.toString(), values);
+            DatasetQueryService.Query query,
+            List<FieldResponse> fields) {
+        var prepared = SqlAggregation.build(
+                type, type == DataSourceType.POSTGRESQL ? postgresPreparedSql(sql) : sql, query, fields);
+        String statement = prepared.sql();
+        return execute(type, address, settings, statement, prepared.values());
     }
 
     private static String postgresPreparedSql(String sql) {
@@ -170,6 +104,17 @@ class ExternalJdbcConnector {
                 address,
                 settings,
                 connection -> {
+                    try (var session = connection.createStatement()) {
+                        switch (type) {
+                            case POSTGRESQL -> session.execute("SET TIME ZONE 'UTC'");
+                            case MYSQL -> session.execute("SET time_zone = '+00:00'");
+                            case ORACLE -> {
+                                session.execute("ALTER SESSION SET TIME_ZONE = '+00:00'");
+                                session.execute("ALTER SESSION SET NLS_CALENDAR = 'GREGORIAN'");
+                            }
+                            default -> {}
+                        }
+                    }
                     connection.setReadOnly(true);
                     // PostgreSQL 只有事务内才会下发 READ ONLY；关闭自动提交也让预览结束时总是回滚。
                     connection.setAutoCommit(false);
@@ -249,8 +194,13 @@ class ExternalJdbcConnector {
                     Types.REAL,
                     Types.DOUBLE -> FieldType.NUMBER;
             case Types.DATE -> FieldType.DATE;
-            case Types.TIMESTAMP, Types.TIMESTAMP_WITH_TIMEZONE, Types.TIME, Types.TIME_WITH_TIMEZONE ->
-                FieldType.DATETIME;
+            case Types.TIMESTAMP,
+                    Types.TIMESTAMP_WITH_TIMEZONE,
+                    Types.TIME,
+                    Types.TIME_WITH_TIMEZONE,
+                    -155,
+                    -101,
+                    -102 -> FieldType.DATETIME;
             case Types.BOOLEAN, Types.BIT -> FieldType.BOOLEAN;
             case Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR, Types.NCHAR, Types.NVARCHAR, Types.LONGNVARCHAR ->
                 FieldType.STRING;

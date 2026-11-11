@@ -12,6 +12,7 @@ public enum DatasetErrorCode implements ErrorCode {
     API_ROWS_INVALID("dataset.apiRowsInvalid", 422),
     QUERY_DEFINITION_INVALID("dataset.queryDefinitionInvalid", 400),
     QUERY_INVALID("dataset.queryInvalid", 400),
+    QUERY_DATE_INVALID("dataset.queryDateInvalid", 422),
     FIELD_MISSING("dataset.fieldMissing", 422),
     FIELD_INVALID("dataset.fieldInvalid", 400),
     QUERY_TIMEOUT("dataset.queryTimeout", 422),
