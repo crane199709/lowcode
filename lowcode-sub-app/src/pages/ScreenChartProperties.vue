@@ -19,7 +19,7 @@ import {
   dimensionLimit,
   measureLimit,
   chartNames,
-  type ChartType,
+  type QueryWidgetType,
   type Aggregation,
   type ChartConfig,
   type BindingDataset,
@@ -27,7 +27,7 @@ import {
   type WidgetQuery,
 } from './widget-query'
 import { errorTip } from './data-source'
-const props = defineProps<{ config: ChartConfig; screenId: string; type: ChartType }>()
+const props = defineProps<{ config: ChartConfig; screenId: string; type: QueryWidgetType }>()
 const emit = defineEmits<{ change: [config: ChartConfig] }>()
 const client = useTenantClient()
 const datasets = ref<BindingDataset[]>([])
@@ -35,10 +35,16 @@ const error = ref('')
 const page = ref(1)
 const more = ref(false)
 const selected = computed(() => datasets.value.find((d) => d.id === props.config.datasetId))
-const outputColumns = computed(() => [
-  ...props.config.query.dimensions.map((d) => label(d.field)),
-  ...props.config.query.measures.map((m) => `${label(m.field)} · ${aggregations[m.aggregation]}`),
-])
+const outputColumns = computed(() =>
+  props.type === 'DETAIL_TABLE'
+    ? (props.config.query.fields ?? []).map(label)
+    : [
+        ...props.config.query.dimensions.map((d) => label(d.field)),
+        ...props.config.query.measures.map(
+          (m) => `${label(m.field)} · ${aggregations[m.aggregation]}`,
+        ),
+      ],
+)
 function label(field: string) {
   return selected.value?.fields.find((f) => f.name === field)?.displayName ?? field
 }
@@ -64,7 +70,34 @@ function update(change: (config: ChartConfig) => void) {
   emit('change', config)
 }
 function dataset(value: string) {
-  update((c) => Object.assign(c, { ...emptyChart(props.type), datasetId: value }))
+  update((c) =>
+    Object.assign(c, {
+      ...emptyChart(props.type),
+      datasetId: value,
+      ...(props.type === 'INDICATOR'
+        ? { title: c.title, unit: c.unit, numberFormat: c.numberFormat }
+        : {}),
+    }),
+  )
+}
+function addDetail(field: string) {
+  if (
+    !selected.value?.fields.some((f) => f.name === field) ||
+    (props.config.query.fields?.length ?? 0) >= 64 ||
+    props.config.query.fields?.includes(field)
+  )
+    return
+  update((c) => {
+    c.query.fields ??= []
+    c.query.fields.push(field)
+    c.query.sorts = []
+  })
+}
+function removeDetail(index: number) {
+  update((c) => {
+    c.query.fields?.splice(index, 1)
+    c.query.sorts = []
+  })
 }
 function drag(event: DragEvent, field: string) {
   event.dataTransfer?.setData('text/plain', field)
@@ -170,6 +203,43 @@ onMounted(load)
     "
     >环形显示</el-checkbox
   >
+  <template v-if="type === 'INDICATOR'">
+    <el-form-item label="标题"
+      ><el-input
+        :model-value="config.title"
+        aria-label="指标标题"
+        :maxlength="200"
+        @update:model-value="
+          update((c) => {
+            c.title = $event
+          })
+        "
+    /></el-form-item>
+    <el-form-item label="单位"
+      ><el-input
+        :model-value="config.unit"
+        aria-label="指标单位"
+        :maxlength="40"
+        @update:model-value="
+          update((c) => {
+            c.unit = $event
+          })
+        "
+    /></el-form-item>
+    <el-form-item label="数字格式"
+      ><el-select
+        :model-value="config.numberFormat"
+        aria-label="数字格式"
+        @update:model-value="
+          update((c) => {
+            c.numberFormat = $event
+          })
+        "
+        ><el-option label="自动" value="AUTO" /><el-option label="整数" value="INTEGER" /><el-option
+          label="两位小数"
+          value="DECIMAL_2" /></el-select
+    ></el-form-item>
+  </template>
   <template v-if="selected">
     <el-alert v-if="type !== 'BAR'" :title="chartHint(type)" type="info" :closable="false" />
     <div class="field-list" aria-label="数据集字段">
@@ -180,19 +250,52 @@ onMounted(load)
         draggable="true"
         type="button"
         :disabled="
-          field.role === 'DIMENSION'
-            ? config.query.dimensions.length >= dimensionLimit(type) ||
-              config.query.dimensions.some((d) => d.field === field.name)
-            : config.query.measures.length >= measureLimit(type)
+          type === 'DETAIL_TABLE'
+            ? config.query.fields?.includes(field.name) || (config.query.fields?.length ?? 0) >= 64
+            : type === 'INDICATOR'
+              ? config.query.measures.length >= 1
+              : field.role === 'DIMENSION'
+                ? config.query.dimensions.length >= dimensionLimit(type) ||
+                  config.query.dimensions.some((d) => d.field === field.name)
+                : config.query.measures.length >= measureLimit(type)
         "
         :aria-label="`拖动字段 ${field.displayName}`"
         @dragstart="drag($event, field.name)"
-        @click="add(field.name, field.role === 'DIMENSION' ? 'dimensions' : 'measures')"
+        @click="
+          type === 'DETAIL_TABLE'
+            ? addDetail(field.name)
+            : add(
+                field.name,
+                type === 'INDICATOR'
+                  ? 'measures'
+                  : field.role === 'DIMENSION'
+                    ? 'dimensions'
+                    : 'measures',
+              )
+        "
       >
         {{ field.displayName }} <span>{{ field.role === 'DIMENSION' ? '维度' : '度量' }}</span>
       </button>
     </div>
     <div
+      v-if="type === 'DETAIL_TABLE'"
+      class="drop-zone"
+      role="group"
+      aria-label="明细字段放置区"
+      @dragover.prevent
+      @drop.prevent="addDetail($event.dataTransfer?.getData('text/plain') ?? '')"
+    >
+      <span v-if="!config.query.fields?.length">拖入明细字段</span>
+      <el-tag
+        v-for="(field, i) in config.query.fields"
+        :key="field"
+        closable
+        @close="removeDetail(i)"
+        >{{ label(field) }}</el-tag
+      >
+    </div>
+    <div
+      v-if="type !== 'DETAIL_TABLE' && type !== 'INDICATOR'"
       class="drop-zone"
       role="group"
       aria-label="维度放置区"
@@ -214,6 +317,7 @@ onMounted(load)
       </div>
     </div>
     <div
+      v-if="type !== 'DETAIL_TABLE'"
       class="drop-zone"
       role="group"
       aria-label="度量放置区"

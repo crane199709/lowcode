@@ -269,6 +269,40 @@ abstract class DialectQueryApiTest {
         QueryResultAssertions.rows(rows(preview(screen, dataset, q)), new Object[] {11});
     }
 
+    @Test
+    void detailRowsKeepDuplicatesColumnOrderBoundFiltersAndTopN() {
+        String suffix = type().equals("ORACLE") ? " FROM dual" : "";
+        String numeric =
+                type().equals("CLICKHOUSE") ? "Nullable(Int32)" : type().equals("MYSQL") ? "SIGNED" : "INTEGER";
+        String dataset = dataset("SELECT 'east' AS region, 2 AS amount" + suffix
+                + " UNION ALL SELECT 'east',2" + suffix + " UNION ALL SELECT 'west',1" + suffix
+                + " UNION ALL SELECT NULL,CAST(NULL AS " + numeric + ")" + suffix);
+        String screen = screen(dataset, query(List.of(Map.of("field", "region")), List.of(measure("amount", "SUM"))));
+        var q = query(List.of(), List.of());
+        q.put("mode", "DETAIL");
+        q.put("fields", List.of("amount", "region"));
+        q.put("sorts", List.of(Map.of("column", 0, "direction", "DESC")));
+        var widget = new HashMap<>(
+                (Map<String, Object>) ((List<?>) draft(dataset, q, 0).get("widgets")).get(0));
+        widget.put("type", "DETAIL_TABLE");
+        var result = call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget);
+        assertThat(result.get("code")).isEqualTo("ok");
+        QueryResultAssertions.rows(
+                rows(result),
+                new Object[] {2, "east"},
+                new Object[] {2, "east"},
+                new Object[] {1, "west"},
+                new Object[] {null, null});
+        assertThat(((Map<?, ?>) result.get("data")).get("columns").toString()).contains("f0", "amount", "f1", "region");
+        q.put("filters", List.of(Map.of("field", "amount", "operator", "BETWEEN", "values", List.of(1, 2))));
+        q.put("topN", 1);
+        QueryResultAssertions.rows(
+                rows(call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget)), new Object[] {2, "east"});
+        q.put("filters", List.of(Map.of("field", "region", "operator", "EQ", "values", List.of("east' OR 1=1 --"))));
+        assertThat(rows(call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget)))
+                .isEmpty();
+    }
+
     String quote(String field) {
         return switch (type()) {
             case "MYSQL", "CLICKHOUSE" -> "`" + field.replace("`", "``") + "`";
