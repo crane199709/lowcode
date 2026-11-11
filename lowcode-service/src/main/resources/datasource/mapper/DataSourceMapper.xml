@@ -17,4 +17,9 @@
         ORDER BY name, id
         LIMIT #{limit} OFFSET #{offset}
     </select>
+    <select id="selectForUpdate" resultType="io.saasforge.lowcode.datasource.entity.DataSource">
+        SELECT id FROM data_sources
+        WHERE id = #{id} AND NOT deleted
+        FOR UPDATE
+    </select>
 </mapper>

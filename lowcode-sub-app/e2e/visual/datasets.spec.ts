@@ -31,6 +31,10 @@ async function mock(page: Page, items = [dataset]) {
             meta: { page: { number: 1, size: 100, totalElements: 1, totalPages: 1 } },
           },
         })
+      } else if (path.endsWith('/references')) {
+        await route.fulfill({
+          json: { code: 'ok', httpStatus: 200, data: { references: [], hiddenReferences: false } },
+        })
       } else if (path === '/lowcode/datasets/preview') {
         await route.fulfill({
           json: {

@@ -9,11 +9,16 @@ import io.saasforge.lowcode.datasource.model.FieldOverrideRequest;
 import io.saasforge.lowcode.datasource.model.FieldResponse;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.web.PageQuery;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -23,27 +28,43 @@ public class DatasetService {
     private final DatasetMapper mapper;
     private final DataSourceService sources;
     private final JsonMapper json;
+    private final DatasetReferences references;
+    private final TransactionTemplate writes;
 
-    DatasetService(DatasetMapper mapper, DataSourceService sources, JsonMapper json) {
+    DatasetService(
+            DatasetMapper mapper,
+            DataSourceService sources,
+            JsonMapper json,
+            DatasetReferences references,
+            PlatformTransactionManager transactions) {
         this.mapper = mapper;
         this.sources = sources;
         this.json = json;
+        this.references = references;
+        this.writes = new TransactionTemplate(transactions);
     }
 
     public DatasetResponse create(DatasetRequest request) {
         var dataset = prepare(request);
-        mapper.insert(dataset);
-        return get(dataset.getId());
+        // 远程预览已结束，只在最终写入与重新检查 Source 时持锁。
+        return writes.execute(status -> {
+            sources.lockForDatasetReference(dataset.getDataSourceId());
+            mapper.insert(dataset);
+            return get(dataset.getId());
+        });
     }
 
     public DatasetResponse update(UUID id, DatasetRequest request) {
         require(id);
         var dataset = prepare(request);
         dataset.setId(id);
-        if (mapper.updateById(dataset) == 0) {
-            throw notFound();
-        }
-        return get(id);
+        return writes.execute(status -> {
+            sources.lockForDatasetReference(dataset.getDataSourceId());
+            if (mapper.updateById(dataset) == 0) {
+                throw notFound();
+            }
+            return get(id);
+        });
     }
 
     public DatasetResponse get(UUID id) {
@@ -60,7 +81,29 @@ public class DatasetService {
         return mapper.selectCount(new LambdaQueryWrapper<>());
     }
 
+    public DeletionReferences references(UUID id) {
+        require(id);
+        return references.find(id);
+    }
+
+    /** Screen 最终写入事务按固定顺序锁定引用目标，避免交叉绑定多个 Dataset 时死锁。 */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockForScreenReferences(Collection<UUID> ids) {
+        for (UUID id : ids.stream().distinct().sorted().toList()) {
+            if (mapper.selectForUpdate(id) == null) {
+                throw notFound();
+            }
+        }
+    }
+
+    @Transactional
     public void delete(UUID id) {
+        lockForScreenReferences(List.of(id));
+        var references = references(id);
+        if (references.blocked()) {
+            throw ForgeException.withErrorMessage(
+                    DatasetErrorCode.REFERENCED, "Dataset is referenced by screens", references.summary());
+        }
         if (mapper.deleteById(id) == 0) {
             throw notFound();
         }
@@ -112,7 +155,7 @@ public class DatasetService {
     }
 
     private DatasetResponse response(Dataset dataset) {
-        // 数据源的引用保护由工单 16 实现；已删除的数据源仍允许查看数据集定义。
+        // 兼容历史定义：已删除的数据源仍允许查看 Dataset。
         String sourceName;
         try {
             sourceName = sources.get(dataset.getDataSourceId()).getName();

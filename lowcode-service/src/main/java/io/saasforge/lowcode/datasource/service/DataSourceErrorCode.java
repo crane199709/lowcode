@@ -5,6 +5,7 @@ import io.saasforge.sdk.core.api.ErrorCode;
 public enum DataSourceErrorCode implements ErrorCode {
     /** 其他租户、已删除与不存在的数据源同样返回本错误，不泄露它是否存在。 */
     NOT_FOUND("datasource.notFound", 404),
+    REFERENCED("datasource.referenced", 409),
     TABLE_NOT_FOUND("datasource.tableNotFound", 404),
     METADATA_NOT_SUPPORTED("datasource.metadataNotSupported", 400),
     PARAM_NOT_ALLOWED("datasource.paramNotAllowed", 400),

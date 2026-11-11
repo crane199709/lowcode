@@ -8,4 +8,14 @@
         ORDER BY updated_at DESC, id
         LIMIT #{limit} OFFSET #{offset}
     </select>
+    <select id="selectReferences" resultType="io.saasforge.lowcode.datasource.entity.Dataset">
+        SELECT id, name FROM datasets
+        WHERE data_source_id = #{dataSourceId} AND NOT deleted
+        ORDER BY name, id
+    </select>
+    <select id="selectForUpdate" resultType="io.saasforge.lowcode.datasource.entity.Dataset">
+        SELECT id FROM datasets
+        WHERE id = #{id} AND NOT deleted
+        FOR UPDATE
+    </select>
 </mapper>

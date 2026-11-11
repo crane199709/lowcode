@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElButton, ElMessageBox, ElTableColumn } from 'element-plus'
+import { ElButton, ElTableColumn } from 'element-plus'
 import { useAccessControl, useTenantClient, type Page } from '@crane199709/sdk'
 import {
   ErrorAlert,
@@ -13,6 +13,7 @@ import {
 } from '@crane199709/ui'
 import DatasetFormDrawer from './DatasetFormDrawer.vue'
 import { errorTip } from './data-source'
+import ResourceDeleteDialog from './ResourceDeleteDialog.vue'
 import type { Dataset } from './dataset'
 
 const { t } = useI18n({
@@ -31,11 +32,6 @@ const { t } = useI18n({
       delete: '删除',
       empty: '暂无数据集',
       failed: '数据集加载失败，请稍后重试',
-      deleteTitle: '删除数据集',
-      deleteConfirm: '删除「{name}」后，引用它的大屏将无法取数。',
-      deleteFailed: '删除失败，请稍后重试',
-      confirm: '删除',
-      cancel: '取消',
     },
   },
 })
@@ -47,6 +43,8 @@ const canManage = computed(() => access.has('dataset:manage'))
 const datasets = ref<Page<Dataset> | null>(null)
 const busy = ref(false)
 const error = ref<ErrorTip | null>(null)
+const deleting = ref<Dataset | null>(null)
+const deleteOpen = ref(false)
 const drawerOpen = ref(false)
 const readonly = ref(false)
 const editing = ref<Dataset | null>(null)
@@ -76,23 +74,9 @@ function openForm(row: Dataset | null) {
   drawerOpen.value = true
 }
 
-async function remove(row: Dataset) {
-  try {
-    await ElMessageBox.confirm(t('deleteConfirm', { name: row.name }), t('deleteTitle'), {
-      type: 'warning',
-      confirmButtonText: t('confirm'),
-      cancelButtonText: t('cancel'),
-    })
-  } catch {
-    return
-  }
-  error.value = null
-  try {
-    await client.api<void>(`/lowcode/datasets/${row.id}`, { method: 'DELETE' })
-    await load()
-  } catch (cause) {
-    error.value = errorTip(cause, t('deleteFailed'))
-  }
+function remove(row: Dataset) {
+  deleting.value = row
+  deleteOpen.value = true
 }
 
 onMounted(() => load())
@@ -134,6 +118,13 @@ onMounted(() => load())
         </template>
       </el-table-column>
     </ListPage>
+    <ResourceDeleteDialog
+      v-model="deleteOpen"
+      :resource="deleting"
+      path="datasets"
+      label="数据集"
+      @deleted="load()"
+    />
     <DatasetFormDrawer
       v-model="drawerOpen"
       :editing="editing"
