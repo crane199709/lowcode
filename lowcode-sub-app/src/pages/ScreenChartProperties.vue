@@ -14,16 +14,21 @@ import {
 import { useTenantClient } from '@crane199709/sdk'
 import {
   aggregations,
-  emptyBar,
+  emptyChart,
+  chartHint,
+  dimensionLimit,
+  measureLimit,
+  chartNames,
+  type ChartType,
   type Aggregation,
-  type BarConfig,
+  type ChartConfig,
   type BindingDataset,
   type DateGrouping,
   type WidgetQuery,
 } from './widget-query'
 import { errorTip } from './data-source'
-const props = defineProps<{ config: BarConfig; screenId: string }>()
-const emit = defineEmits<{ change: [config: BarConfig] }>()
+const props = defineProps<{ config: ChartConfig; screenId: string; type: ChartType }>()
+const emit = defineEmits<{ change: [config: ChartConfig] }>()
 const client = useTenantClient()
 const datasets = ref<BindingDataset[]>([])
 const error = ref('')
@@ -53,13 +58,13 @@ function loadMore() {
   page.value++
   void load()
 }
-function update(change: (config: BarConfig) => void) {
-  const config = JSON.parse(JSON.stringify(props.config)) as BarConfig
+function update(change: (config: ChartConfig) => void) {
+  const config = JSON.parse(JSON.stringify(props.config)) as ChartConfig
   change(config)
   emit('change', config)
 }
 function dataset(value: string) {
-  update((c) => Object.assign(c, { ...emptyBar(), datasetId: value }))
+  update((c) => Object.assign(c, { ...emptyChart(props.type), datasetId: value }))
 }
 function drag(event: DragEvent, field: string) {
   event.dataTransfer?.setData('text/plain', field)
@@ -69,15 +74,20 @@ function add(field: string, target: 'dimensions' | 'measures') {
   if (!f) {
     return
   }
+  if (
+    target === 'dimensions' &&
+    (props.config.query.dimensions.length >= dimensionLimit(props.type) ||
+      props.config.query.dimensions.some((d) => d.field === field))
+  ) {
+    return
+  }
+  if (target === 'measures' && props.config.query.measures.length >= measureLimit(props.type)) {
+    return
+  }
   update((c) => {
     c.query.sorts = []
-    if (target === 'dimensions') {
-      if (c.query.dimensions.length < 8 && !c.query.dimensions.some((d) => d.field === field)) {
-        c.query.dimensions.push({ field })
-      }
-    } else if (c.query.measures.length < 16) {
-      c.query.measures.push({ field, aggregation: f.type === 'NUMBER' ? 'SUM' : 'COUNT' })
-    }
+    if (target === 'dimensions') c.query.dimensions.push({ field })
+    else c.query.measures.push({ field, aggregation: f.type === 'NUMBER' ? 'SUM' : 'COUNT' })
   })
 }
 function drop(event: DragEvent, target: 'dimensions' | 'measures') {
@@ -142,7 +152,7 @@ onMounted(load)
   <el-form-item label="数据集"
     ><el-select
       :model-value="config.datasetId"
-      aria-label="柱状图数据集"
+      :aria-label="`${chartNames[type].replace('基础', '')}数据集`"
       placeholder="选择数据集"
       @update:model-value="dataset"
       ><el-option v-for="d in datasets" :key="d.id" :value="d.id" :label="d.name" /></el-select
@@ -150,7 +160,18 @@ onMounted(load)
   <el-alert v-if="error" :title="error" type="error" :closable="false" />
   <el-button v-if="error" @click="load">重试加载数据集</el-button>
   <el-button v-if="more" link @click="loadMore">加载更多数据集</el-button>
+  <el-checkbox
+    v-if="type === 'PIE'"
+    :model-value="config.donut"
+    @change="
+      update((c) => {
+        c.donut = !!$event
+      })
+    "
+    >环形显示</el-checkbox
+  >
   <template v-if="selected">
+    <el-alert v-if="type !== 'BAR'" :title="chartHint(type)" type="info" :closable="false" />
     <div class="field-list" aria-label="数据集字段">
       <button
         v-for="field in selected.fields"
@@ -158,6 +179,12 @@ onMounted(load)
         class="field"
         draggable="true"
         type="button"
+        :disabled="
+          field.role === 'DIMENSION'
+            ? config.query.dimensions.length >= dimensionLimit(type) ||
+              config.query.dimensions.some((d) => d.field === field.name)
+            : config.query.measures.length >= measureLimit(type)
+        "
         :aria-label="`拖动字段 ${field.displayName}`"
         @dragstart="drag($event, field.name)"
         @click="add(field.name, field.role === 'DIMENSION' ? 'dimensions' : 'measures')"
@@ -200,7 +227,16 @@ onMounted(load)
           :model-value="m.aggregation"
           :aria-label="`度量${i + 1}聚合`"
           @update:model-value="aggregate(i, $event)"
-          ><el-option v-for="(text, key) in aggregations" :key="key" :value="key" :label="text"
+          ><el-option
+            v-for="(text, key) in aggregations"
+            :key="key"
+            :value="key"
+            :label="text"
+            :disabled="
+              key !== 'COUNT' &&
+              key !== 'COUNT_DISTINCT' &&
+              selected.fields.find((f) => f.name === m.field)?.type !== 'NUMBER'
+            "
         /></el-select>
       </div>
     </div>
@@ -338,6 +374,11 @@ onMounted(load)
   color: var(--el-text-color-primary);
   cursor: grab;
   font: inherit;
+}
+.field:disabled {
+  color: var(--el-text-color-disabled);
+  cursor: not-allowed;
+  background: var(--el-fill-color-blank);
 }
 .field span {
   font-size: var(--forge-font-size-sm);

@@ -98,7 +98,9 @@ async function mock(page: Page, definition = draft) {
 test('编辑者拖入维度与度量得到实际柱状图并保存配置', async ({ page }) => {
   const { queries, saves } = await mock(page)
   await open(page, `screens/${screenId}/edit`, ['screen:edit'])
-  await page.getByRole('button', { name: '添加柱状图', exact: true }).click()
+  await page.getByRole('button', { name: '添加组件', exact: true }).click()
+  await page.getByRole('menuitem', { name: '柱状图', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: '柱状图', exact: true })).not.toBeVisible()
   await page.getByRole('combobox', { name: '柱状图数据集', exact: true }).press('ArrowDown')
   await page
     .getByRole('option', { name: '季度销售明细（区域与含税销售金额）', exact: true })
