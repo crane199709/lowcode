@@ -10,18 +10,19 @@ export interface Dataset {
   name: string
   dataSourceId: string
   dataSourceName: string | null
+  jsonPath?: string | null
   sql: string
   fields: DatasetField[]
   createdAt: string
   updatedAt: string
 }
-export interface SqlPreview {
+export interface DatasetPreview {
   fields: DatasetField[]
   rows: (string | number | boolean | null)[][]
   truncated: boolean
   maxRows: number
 }
-export interface DatabaseSource {
+export interface DatasetSource {
   id: string
   name: string
   type: string

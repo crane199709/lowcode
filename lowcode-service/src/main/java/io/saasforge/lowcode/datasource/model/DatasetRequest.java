@@ -10,5 +10,6 @@ import java.util.UUID;
 public record DatasetRequest(
         @NotBlank @Size(max = 120) String name,
         @NotNull UUID dataSourceId,
-        @NotBlank @Size(max = 65536) String sql,
+        @Size(max = 65536) String sql,
+        @Size(max = 4096) String jsonPath,
         @Size(max = 1000) List<@NotNull @Valid FieldOverrideRequest> fields) {}

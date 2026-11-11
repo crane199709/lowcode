@@ -1,5 +1,7 @@
 package io.saasforge.lowcode.datasource.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.saasforge.sdk.tenant.AuditableEntity;
 import java.util.UUID;
@@ -10,6 +12,10 @@ public class Dataset extends AuditableEntity {
     private String name;
     private UUID dataSourceId;
     private String sqlQuery;
+
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String jsonPath;
+
     private String fields;
 
     public UUID getId() {
@@ -42,6 +48,14 @@ public class Dataset extends AuditableEntity {
 
     public void setSqlQuery(String sqlQuery) {
         this.sqlQuery = sqlQuery;
+    }
+
+    public String getJsonPath() {
+        return jsonPath;
+    }
+
+    public void setJsonPath(String jsonPath) {
+        this.jsonPath = jsonPath;
     }
 
     public String getFields() {

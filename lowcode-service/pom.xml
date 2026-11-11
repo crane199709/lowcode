@@ -28,6 +28,10 @@
          IO 上传复用 IoStoragePurposes.SOURCE。配置与示例见 docs/business-service-guide.md。 -->
     <dependencies>
         <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.saasforge</groupId>
             <artifactId>forge-sdk-ops</artifactId>
         </dependency>

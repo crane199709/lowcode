@@ -10,6 +10,7 @@ public record DatasetResponse(
         UUID dataSourceId,
         String dataSourceName,
         String sql,
+        String jsonPath,
         List<FieldResponse> fields,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {}

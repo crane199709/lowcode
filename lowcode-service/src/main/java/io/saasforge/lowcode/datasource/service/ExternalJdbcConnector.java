@@ -4,10 +4,10 @@ import io.saasforge.lowcode.datasource.config.SqlDatasetProperties;
 import io.saasforge.lowcode.datasource.model.ColumnResponse;
 import io.saasforge.lowcode.datasource.model.ConnectionSettings;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
+import io.saasforge.lowcode.datasource.model.DatasetPreviewResponse;
 import io.saasforge.lowcode.datasource.model.FieldResponse;
 import io.saasforge.lowcode.datasource.model.FieldRole;
 import io.saasforge.lowcode.datasource.model.FieldType;
-import io.saasforge.lowcode.datasource.model.SqlPreviewResponse;
 import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.sdk.core.api.ForgeException;
 import java.net.Inet6Address;
@@ -55,7 +55,7 @@ class ExternalJdbcConnector {
         this.sqlProperties = sqlProperties;
     }
 
-    SqlPreviewResponse preview(DataSourceType type, InetAddress address, ConnectionSettings settings, String sql) {
+    DatasetPreviewResponse preview(DataSourceType type, InetAddress address, ConnectionSettings settings, String sql) {
         return withConnection(
                 type,
                 address,
@@ -105,7 +105,7 @@ class ExternalJdbcConnector {
                                 }
                                 rows.add(row);
                             }
-                            return new SqlPreviewResponse(
+                            return new DatasetPreviewResponse(
                                     List.copyOf(fields), rows, truncated, sqlProperties.maxRows());
                         }
                     } catch (SQLException e) {

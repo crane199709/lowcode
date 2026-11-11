@@ -248,13 +248,13 @@ class SqlDatasetApiTest {
                         "api",
                         Map.of("url", "http://127.0.0.1:12345/report", "method", "GET", "authType", "NONE")));
         String apiId = (String) ((Map<?, ?>) api.get("data")).get("id");
-        assertThat(preview(apiId, "SELECT 1").get("code")).isEqualTo("dataset.sourceNotSupported");
+        assertThat(preview(apiId, "SELECT 1").get("code")).isEqualTo("dataset.queryDefinitionInvalid");
         TestGrants.publish(redisTemplate, TestTokens.TENANT_ID, OUTSIDER, List.of("dataset:manage"));
         token = TestTokens.forMembership(TestTokens.TENANT_ID, OUTSIDER);
         var choices = exchange(HttpMethod.GET, "/datasets/sources", null);
         assertThat(choices.get("code")).isEqualTo("ok");
-        assertThat(choices.toString()).doesNotContain("password", "username", external.host(), apiId);
-        assertThat(choices.toString()).contains(source);
+        assertThat(choices.toString()).doesNotContain("password", "username", external.host());
+        assertThat(choices.toString()).contains(source, apiId);
         assertThat(preview(source, "SELECT 1 AS value").get("code")).isEqualTo("ok");
     }
 

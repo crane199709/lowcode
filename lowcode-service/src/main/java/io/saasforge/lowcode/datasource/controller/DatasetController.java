@@ -1,9 +1,9 @@
 package io.saasforge.lowcode.datasource.controller;
 
-import io.saasforge.lowcode.datasource.model.DatabaseSourceResponse;
+import io.saasforge.lowcode.datasource.model.DatasetPreviewResponse;
 import io.saasforge.lowcode.datasource.model.DatasetRequest;
 import io.saasforge.lowcode.datasource.model.DatasetResponse;
-import io.saasforge.lowcode.datasource.model.SqlPreviewResponse;
+import io.saasforge.lowcode.datasource.model.DatasetSourceResponse;
 import io.saasforge.lowcode.datasource.service.DataSourceService;
 import io.saasforge.lowcode.datasource.service.DatasetService;
 import io.saasforge.sdk.core.api.ApiResponse;
@@ -12,7 +12,6 @@ import io.saasforge.sdk.web.PageQuery;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -40,12 +39,11 @@ class DatasetController {
         this.datasets = datasets;
     }
 
-    @Operation(summary = "列出 SQL 数据集可选的数据源，不包含连接与凭据")
+    @Operation(summary = "列出数据集可选的数据源，不包含连接与凭据")
     @GetMapping("/sources")
     @RequiresPermission("dataset:manage")
-    public ApiResponse<List<DatabaseSourceResponse>> sources(PageQuery query) {
-        return ApiResponse.page(
-                dataSourceService.databaseSources(query), query.toPageMeta(dataSourceService.databaseSourceCount()));
+    public ApiResponse<List<DatasetSourceResponse>> sources(PageQuery query) {
+        return ApiResponse.page(dataSourceService.datasetSources(query), query.toPageMeta(dataSourceService.count()));
     }
 
     @Operation(summary = "列出当前租户的数据集")
@@ -62,7 +60,7 @@ class DatasetController {
         return ApiResponse.ok(datasets.get(id));
     }
 
-    @Operation(summary = "保存 SQL 数据集，重新执行预览推断 Field")
+    @Operation(summary = "保存数据集，重新执行预览推断 Field")
     @PostMapping
     @RequiresPermission("dataset:manage")
     @ResponseStatus(HttpStatus.CREATED)
@@ -70,7 +68,7 @@ class DatasetController {
         return ApiResponse.created(datasets.create(request));
     }
 
-    @Operation(summary = "修改 SQL 数据集与 Field")
+    @Operation(summary = "修改数据集与 Field")
     @PutMapping("/{id}")
     @RequiresPermission("dataset:manage")
     public ApiResponse<DatasetResponse> update(@PathVariable UUID id, @Valid @RequestBody DatasetRequest request) {
@@ -85,14 +83,16 @@ class DatasetController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "预览单条只读 SQL 并推断 Field")
+    @Operation(summary = "预览数据集并推断 Field")
     @PostMapping("/preview")
     @RequiresPermission("dataset:manage")
-    public ApiResponse<SqlPreviewResponse> preview(@Valid @RequestBody SqlPreviewRequest request) {
-        return ApiResponse.ok(dataSourceService.previewSql(request.dataSourceId(), request.sql()));
+    public ApiResponse<DatasetPreviewResponse> preview(@Valid @RequestBody DatasetPreviewRequest request) {
+        return ApiResponse.ok(
+                dataSourceService.previewDataset(request.dataSourceId(), request.sql(), request.jsonPath()));
     }
 
-    record SqlPreviewRequest(
+    record DatasetPreviewRequest(
             @NotNull UUID dataSourceId,
-            @NotBlank @Size(max = 65536) String sql) {}
+            @Size(max = 65536) String sql,
+            @Size(max = 4096) String jsonPath) {}
 }

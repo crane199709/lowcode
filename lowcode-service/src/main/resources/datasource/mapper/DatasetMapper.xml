@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="io.saasforge.lowcode.datasource.mapper.DatasetMapper">
     <select id="selectPage" resultType="io.saasforge.lowcode.datasource.entity.Dataset">
-        SELECT id, name, data_source_id, sql_query, fields, created_at, updated_at, created_by, updated_by, deleted
+        SELECT id, name, data_source_id, sql_query, json_path, fields, created_at, updated_at, created_by, updated_by, deleted
         FROM datasets
         WHERE NOT deleted
         ORDER BY updated_at DESC, id

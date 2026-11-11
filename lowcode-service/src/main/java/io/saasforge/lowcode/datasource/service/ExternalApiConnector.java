@@ -6,6 +6,7 @@ import io.saasforge.lowcode.datasource.model.ApiConnectionTestResponse;
 import io.saasforge.lowcode.datasource.model.ApiMethod;
 import io.saasforge.lowcode.datasource.model.ApiSettings;
 import io.saasforge.sdk.core.api.ForgeException;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -55,6 +56,14 @@ class ExternalApiConnector {
      * @throws ForgeException 重定向、认证失败、超时、响应超限与不可达等情况，带可读错误码
      */
     ApiConnectionTestResponse testConnection(ApiSettings settings, List<InetAddress> addresses) {
+        return new ApiConnectionTestResponse(execute(settings, addresses).status());
+    }
+
+    byte[] fetch(ApiSettings settings, List<InetAddress> addresses) {
+        return execute(settings, addresses).body();
+    }
+
+    private ApiResult execute(ApiSettings settings, List<InetAddress> addresses) {
         var timeout = Timeout.of(properties.timeout());
         var requestConfig = RequestConfig.custom()
                 .setConnectionRequestTimeout(timeout)
@@ -98,8 +107,7 @@ class ExternalApiConnector {
                     throw new ForgeException(DataSourceErrorCode.API_HTTP_ERROR, status);
                 }
                 // 测试连接也受响应体上限约束，否则一个超大响应就能拖垮服务
-                readBody(response.getEntity());
-                return new ApiConnectionTestResponse(status);
+                return new ApiResult(status, readBody(response.getEntity()));
             }
         } catch (ForgeException e) {
             throw e;
@@ -123,15 +131,16 @@ class ExternalApiConnector {
     }
 
     /** 读取响应体并计数，Content-Length 已知时先判断，避免把超大响应读进内存。 */
-    private void readBody(HttpEntity entity) throws IOException {
+    private byte[] readBody(HttpEntity entity) throws IOException {
         if (entity == null) {
-            return;
+            return new byte[0];
         }
         int max = properties.maxResponseBytes();
         if (entity.getContentLength() > max) {
             throw new ResponseTooLargeException();
         }
-        try (InputStream body = entity.getContent()) {
+        try (InputStream body = entity.getContent();
+                var output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             long total = 0;
             int read;
@@ -140,7 +149,9 @@ class ExternalApiConnector {
                 if (total > max) {
                     throw new ResponseTooLargeException();
                 }
+                output.write(buffer, 0, read);
             }
+            return output.toByteArray();
         }
     }
 
@@ -165,6 +176,8 @@ class ExternalApiConnector {
             return host;
         }
     }
+
+    private record ApiResult(int status, byte[] body) {}
 
     private static final class ResponseTooLargeException extends IOException {}
 }

@@ -11,9 +11,9 @@
         ORDER BY updated_at DESC, id
         LIMIT #{limit} OFFSET #{offset}
     </select>
-    <select id="selectDatabasePage" resultType="io.saasforge.lowcode.datasource.entity.DataSource">
+    <select id="selectDatasetPage" resultType="io.saasforge.lowcode.datasource.entity.DataSource">
         SELECT id, name, type FROM data_sources
-        WHERE NOT deleted AND type != 'API'
+        WHERE NOT deleted
         ORDER BY name, id
         LIMIT #{limit} OFFSET #{offset}
     </select>

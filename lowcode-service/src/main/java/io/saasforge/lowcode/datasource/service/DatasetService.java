@@ -75,8 +75,9 @@ public class DatasetService {
     }
 
     private Dataset prepare(DatasetRequest request) {
-        // 每次保存都重新执行查询；客户端不能伪造 Field 的存在性与数据库类型。
-        var inferred = sources.previewSql(request.dataSourceId(), request.sql()).fields();
+        // 每次保存都重新执行查询；客户端不能伪造 Field 的存在性与结果类型。
+        var inferred = sources.previewDataset(request.dataSourceId(), request.sql(), request.jsonPath())
+                .fields();
         Map<String, FieldOverrideRequest> overrides = new HashMap<>();
         if (request.fields() != null) {
             for (var field : request.fields()) {
@@ -104,7 +105,8 @@ public class DatasetService {
         var dataset = new Dataset();
         dataset.setName(request.name());
         dataset.setDataSourceId(request.dataSourceId());
-        dataset.setSqlQuery(request.sql());
+        dataset.setSqlQuery(request.sql() == null || request.sql().isBlank() ? "" : request.sql());
+        dataset.setJsonPath(request.jsonPath() == null || request.jsonPath().isBlank() ? null : request.jsonPath());
         dataset.setFields(json.writeValueAsString(fields));
         return dataset;
     }
@@ -126,6 +128,7 @@ public class DatasetService {
                 dataset.getDataSourceId(),
                 sourceName,
                 dataset.getSqlQuery(),
+                dataset.getJsonPath(),
                 json.readValue(dataset.getFields(), FIELDS),
                 dataset.getCreatedAt(),
                 dataset.getUpdatedAt());

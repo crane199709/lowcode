@@ -19,7 +19,7 @@ import {
 import { useTenantClient } from '@crane199709/sdk'
 import { ErrorAlert, overlaySize, type ErrorTip } from '@crane199709/ui'
 import { errorTip, jsonBody } from './data-source'
-import type { DatabaseSource, Dataset, DatasetField, SqlPreview } from './dataset'
+import type { DatasetSource, Dataset, DatasetField, DatasetPreview } from './dataset'
 
 const props = defineProps<{ modelValue: boolean; editing: Dataset | null; readonly: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [boolean]; saved: [] }>()
@@ -33,6 +33,7 @@ const { t } = useI18n({
       name: '名称',
       source: '数据源',
       sql: 'SQL',
+      jsonPath: 'JSON 路径',
       readonlyTip: '请使用只读账号',
       readonlyDescription:
         '仅允许单条 SELECT 或 WITH 查询。只读连接不能保证拦截所有写操作，账号权限是最终防线。',
@@ -54,7 +55,7 @@ const { t } = useI18n({
       save: '保存',
       required: '请填写{field}',
       sourcesFailed: '数据源加载失败，请重试',
-      previewFailed: '预览失败，请检查 SQL',
+      previewFailed: '预览失败，请检查查询定义',
       saveFailed: '保存失败，请重试',
       retry: '重试',
       NUMBER: '数值',
@@ -69,12 +70,12 @@ const { t } = useI18n({
 const client = useTenantClient()
 const formRef = ref<FormInstance>()
 const resultRef = ref<HTMLElement>()
-const form = reactive({ name: '', dataSourceId: '', sql: '' })
+const form = reactive({ name: '', dataSourceId: '', sql: '', jsonPath: '' })
 const fields = ref<DatasetField[]>([])
-const sources = ref<DatabaseSource[]>([])
+const sources = ref<DatasetSource[]>([])
 const sourcesBusy = ref(false)
 const sourcesError = ref<ErrorTip | null>(null)
-const preview = ref<SqlPreview | null>(null)
+const preview = ref<DatasetPreview | null>(null)
 const error = ref<ErrorTip | null>(null)
 const previewing = ref(false)
 const saving = ref(false)
@@ -82,9 +83,14 @@ let revision = 0
 let sourceRequest = 0
 let fieldOverrides = new Map<string, DatasetField>()
 const title = computed(() => t(props.readonly ? 'view' : props.editing ? 'edit' : 'create'))
+const isApi = computed(() => {
+  const source = sources.value.find((source) => source.id === form.dataSourceId)
+  return source ? source.type === 'API' : !!props.editing?.jsonPath
+})
+const queryKey = computed(() => (isApi.value ? 'jsonPath' : 'sql'))
 const rules = computed(() =>
   Object.fromEntries(
-    ['name', 'dataSourceId', 'sql'].map((key) => [
+    ['name', 'dataSourceId', queryKey.value].map((key) => [
       key,
       [
         {
@@ -99,9 +105,13 @@ const rules = computed(() =>
 )
 
 watch(
-  () => [form.dataSourceId, form.sql],
-  () => {
+  () => [form.dataSourceId, form.sql, form.jsonPath],
+  (current, previous) => {
     revision += 1
+    if (current[0] !== previous[0]) {
+      fieldOverrides.clear()
+      fields.value = []
+    }
     for (const field of fields.value) fieldOverrides.set(field.name, { ...field })
     preview.value = null
     fields.value = []
@@ -119,6 +129,7 @@ watch(
       name: props.editing?.name ?? '',
       dataSourceId: props.editing?.dataSourceId ?? '',
       sql: props.editing?.sql ?? '',
+      jsonPath: props.editing?.jsonPath ?? '',
     })
     fields.value = props.editing?.fields.map((field) => ({ ...field })) ?? []
     fieldOverrides = new Map(fields.value.map((field) => [field.name, { ...field }]))
@@ -134,9 +145,9 @@ async function loadSources() {
   sourcesError.value = null
   sources.value = []
   try {
-    const items: DatabaseSource[] = []
+    const items: DatasetSource[] = []
     for (let page = 1; ; page += 1) {
-      const result = await client.page<DatabaseSource>(
+      const result = await client.page<DatasetSource>(
         `/lowcode/datasets/sources?page=${page}&size=100`,
       )
       items.push(...result.items)
@@ -154,8 +165,15 @@ async function showResult() {
   await nextTick()
   resultRef.value?.scrollIntoView({ block: 'nearest' })
 }
+function queryDefinition() {
+  return {
+    dataSourceId: form.dataSourceId,
+    sql: isApi.value ? '' : form.sql,
+    jsonPath: isApi.value ? form.jsonPath : null,
+  }
+}
 async function runPreview() {
-  if (!form.dataSourceId || !form.sql.trim()) {
+  if (!form.dataSourceId || !form[queryKey.value].trim()) {
     await formRef.value?.validate().catch(() => false)
     return false
   }
@@ -165,9 +183,9 @@ async function runPreview() {
   preview.value = null
   error.value = null
   try {
-    const result = await client.api<SqlPreview>(
+    const result = await client.api<DatasetPreview>(
       '/lowcode/datasets/preview',
-      jsonBody('POST', { dataSourceId: form.dataSourceId, sql: form.sql }),
+      jsonBody('POST', queryDefinition()),
     )
     if (current !== revision || !props.modelValue) return false
     const overrides = new Map([
@@ -192,14 +210,15 @@ async function runPreview() {
 }
 async function save() {
   if (!(await formRef.value?.validate().catch(() => false))) return
-  // SQL 改动后先用最新模型筛选同名覆盖，避免丢失显示配置或提交已经移除的 Field。
+  // 查询定义改动后先用最新模型筛选同名覆盖，避免丢失显示配置或提交已经移除的 Field。
   if (!fields.value.length && fieldOverrides.size && !(await runPreview())) return
   const current = revision
   saving.value = true
   error.value = null
   try {
     const body = {
-      ...form,
+      name: form.name,
+      ...queryDefinition(),
       fields: fields.value.map(({ name, displayName, role, date }) => ({
         name,
         displayName,
@@ -235,13 +254,14 @@ async function save() {
       <el-form label-position="top">
         <el-form-item :label="t('name')">{{ editing?.name || '—' }}</el-form-item>
         <el-form-item :label="t('source')">{{ editing?.dataSourceName || '—' }}</el-form-item>
-        <el-form-item :label="t('sql')">
-          <pre class="sql-text">{{ editing?.sql || '—' }}</pre>
+        <el-form-item :label="t(editing?.jsonPath ? 'jsonPath' : 'sql')">
+          <pre class="sql-text">{{ editing?.jsonPath || editing?.sql || '—' }}</pre>
         </el-form-item>
       </el-form>
     </template>
     <template v-else>
       <el-alert
+        v-if="!isApi"
         class="notice"
         type="warning"
         :title="t('readonlyTip')"
@@ -251,7 +271,14 @@ async function save() {
       />
       <ErrorAlert v-if="sourcesError" :tip="sourcesError" />
       <el-button v-if="sourcesError" @click="loadSources">{{ t('retry') }}</el-button>
-      <el-form ref="formRef" :model="form" :rules="rules" :disabled="saving" label-position="top">
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        :disabled="saving"
+        :validate-on-rule-change="false"
+        label-position="top"
+      >
         <el-form-item :label="t('name')" prop="name"
           ><el-input v-model="form.name" :aria-label="t('name')" maxlength="120"
         /></el-form-item>
@@ -270,7 +297,15 @@ async function save() {
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('sql')" prop="sql"
+        <el-form-item v-if="isApi" :label="t('jsonPath')" prop="jsonPath">
+          <el-input
+            v-model="form.jsonPath"
+            :aria-label="t('jsonPath')"
+            maxlength="4096"
+            placeholder="$.data.items"
+          />
+        </el-form-item>
+        <el-form-item v-else :label="t('sql')" prop="sql"
           ><el-input
             v-model="form.sql"
             :aria-label="t('sql')"

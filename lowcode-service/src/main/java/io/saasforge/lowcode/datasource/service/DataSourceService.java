@@ -10,8 +10,8 @@ import io.saasforge.lowcode.datasource.model.ApiSettings;
 import io.saasforge.lowcode.datasource.model.ColumnResponse;
 import io.saasforge.lowcode.datasource.model.ConnectionSettings;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
-import io.saasforge.lowcode.datasource.model.DatabaseSourceResponse;
-import io.saasforge.lowcode.datasource.model.SqlPreviewResponse;
+import io.saasforge.lowcode.datasource.model.DatasetPreviewResponse;
+import io.saasforge.lowcode.datasource.model.DatasetSourceResponse;
 import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.web.PageQuery;
@@ -44,6 +44,7 @@ public class DataSourceService {
     private final ExternalJdbcConnector connector;
     private final ExternalApiConnector apiConnector;
     private final JsonMapper jsonMapper;
+    private final ApiDatasetReader apiDatasets;
 
     DataSourceService(
             DataSourceMapper dataSourceMapper,
@@ -51,12 +52,14 @@ public class DataSourceService {
             SecretCipher secretCipher,
             ExternalJdbcConnector connector,
             ExternalApiConnector apiConnector,
+            ApiDatasetReader apiDatasets,
             JsonMapper jsonMapper) {
         this.dataSourceMapper = dataSourceMapper;
         this.networkGuard = networkGuard;
         this.secretCipher = secretCipher;
         this.connector = connector;
         this.apiConnector = apiConnector;
+        this.apiDatasets = apiDatasets;
         this.jsonMapper = jsonMapper;
     }
 
@@ -124,19 +127,41 @@ public class DataSourceService {
         return dataSourceMapper.selectPage(query.size(), query.offset());
     }
 
-    public List<DatabaseSourceResponse> databaseSources(PageQuery query) {
-        return dataSourceMapper.selectDatabasePage(query.size(), query.offset()).stream()
-                .map(source -> new DatabaseSourceResponse(
+    public List<DatasetSourceResponse> datasetSources(PageQuery query) {
+        return dataSourceMapper.selectDatasetPage(query.size(), query.offset()).stream()
+                .map(source -> new DatasetSourceResponse(
                         source.getId(), source.getName(), DataSourceType.valueOf(source.getType())))
                 .toList();
     }
 
-    public long databaseSourceCount() {
-        return dataSourceMapper.selectCount(
-                new LambdaQueryWrapper<DataSource>().ne(DataSource::getType, DataSourceType.API.name()));
+    public DatasetPreviewResponse previewDataset(UUID id, String sql, String jsonPath) {
+        DataSource saved = get(id);
+        if (!DataSourceType.API.name().equals(saved.getType())) {
+            if (sql == null || sql.isBlank() || (jsonPath != null && !jsonPath.isBlank())) {
+                throw new ForgeException(DatasetErrorCode.QUERY_DEFINITION_INVALID);
+            }
+            return previewSql(id, sql);
+        }
+        if (sql != null && !sql.isBlank()) {
+            throw new ForgeException(DatasetErrorCode.QUERY_DEFINITION_INVALID);
+        }
+        var path = apiDatasets.compile(jsonPath);
+        var settings = resolveApiSecret(
+                saved,
+                new ApiSettings(
+                        saved.getApiUrl(),
+                        ApiMethod.valueOf(saved.getApiMethod()),
+                        saved.getApiBody(),
+                        ApiAuthType.valueOf(saved.getApiAuth()),
+                        saved.getApiHeaderName(),
+                        null,
+                        saved.getUsername(),
+                        null));
+        var target = prepareApi(settings);
+        return apiDatasets.preview(apiConnector.fetch(target.settings(), target.addresses()), path);
     }
 
-    public SqlPreviewResponse previewSql(UUID id, String sql) {
+    public DatasetPreviewResponse previewSql(UUID id, String sql) {
         DataSource saved = get(id);
         DataSourceType type = DataSourceType.valueOf(saved.getType());
         if (type == DataSourceType.API) {
@@ -239,14 +264,21 @@ public class DataSourceService {
     }
 
     private ApiConnectionTestResponse connectApi(ApiSettings settings) {
+        var target = prepareApi(settings);
+        return apiConnector.testConnection(target.settings(), target.addresses());
+    }
+
+    private ApiTarget prepareApi(ApiSettings settings) {
         URI uri = validateApi(settings);
         List<InetAddress> addresses = networkGuard.resolve(uri.getHost());
         if (addresses.isEmpty()) {
             throw new ForgeException(DataSourceErrorCode.API_UNREACHABLE);
         }
-        // 保存与校验都用 trim 后的地址，请求也必须用同一份，避免首尾空格在 URI.create 处抛未处理的异常
-        return apiConnector.testConnection(settings.withUrl(uri.toString()), addresses);
+        // 保存、校验和请求使用同一份规范化地址，避免 URI.create 处出现未处理异常。
+        return new ApiTarget(settings.withUrl(uri.toString()), addresses);
     }
+
+    private record ApiTarget(ApiSettings settings, List<InetAddress> addresses) {}
 
     private DataSource toEntity(String name, DataSourceType type, ConnectionSettings database, ApiSettings api) {
         var dataSource = new DataSource();
