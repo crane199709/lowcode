@@ -31,6 +31,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
+import net.sf.jsqlparser.parser.CCJSqlParserConstants;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import oracle.jdbc.pool.OracleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,8 +84,8 @@ class ExternalJdbcConnector {
                     : measure.aggregation().name() + "(" + field + ")";
             selections.add(expression + " AS m" + i);
         }
-        StringBuilder statement =
-                new StringBuilder("SELECT " + String.join(", ", selections) + " FROM (" + sql + ") dataset_rows");
+        StringBuilder statement = new StringBuilder(
+                "SELECT " + String.join(", ", selections) + " FROM (" + postgresPreparedSql(sql) + ") dataset_rows");
         List<String> conditions = new ArrayList<>();
         for (var filter : query.filters()) {
             String field = identifier(filter.field());
@@ -137,6 +139,24 @@ class ExternalJdbcConnector {
             values.add(query.topN());
         }
         return execute(type, address, settings, statement.toString(), values);
+    }
+
+    private static String postgresPreparedSql(String sql) {
+        // pgJDBC 把未引用的 ? 当成绑定标记；只转义语法 token，保留字符串、标识符与注释原文。
+        var parser = CCJSqlParserUtil.newParser(sql);
+        StringBuilder result = new StringBuilder();
+        int cursor = 0;
+        for (var token = parser.getNextToken(); token.kind != 0; token = parser.getNextToken()) {
+            if (token.image.contains("?")
+                    && token.kind != CCJSqlParserConstants.S_CHAR_LITERAL
+                    && token.kind != CCJSqlParserConstants.S_QUOTED_IDENTIFIER
+                    && token.kind != CCJSqlParserConstants.LINE_COMMENT
+                    && token.kind != CCJSqlParserConstants.MULTI_LINE_COMMENT) {
+                result.append(sql, cursor, token.absoluteBegin - 1).append(token.image.replace("?", "??"));
+                cursor = token.absoluteEnd - 1;
+            }
+        }
+        return result.append(sql, cursor, sql.length()).toString();
     }
 
     private static String identifier(String field) {

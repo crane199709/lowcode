@@ -60,6 +60,9 @@ public class ScreenService {
     }
 
     public Screen create(String name, ScreenDraft draft) {
+        if (draft != null) {
+            validateQueries(draft);
+        }
         var screen = new Screen();
         screen.setName(name);
         screen.setDraft(json.writeValueAsString(draft == null ? ScreenDraft.empty() : draft));
@@ -121,6 +124,7 @@ public class ScreenService {
         screen.setId(id);
         screen.setName(name);
         if (draft != null) {
+            validateQueries(draft);
             screen.setDraft(json.writeValueAsString(draft));
         }
         if (screenMapper.updateById(screen) == 0) {
@@ -134,6 +138,7 @@ public class ScreenService {
     }
 
     public ScreenDraft saveDraft(UUID id, ScreenDraft draft) {
+        validateQueries(draft);
         get(id);
         validateImages(draft);
         var screen = new Screen();
@@ -191,6 +196,14 @@ public class ScreenService {
             for (UUID objectId : draft.imageObjectIds()) {
                 var image = storage.get(ScreenImageService.PURPOSE, objectId);
                 ScreenImageService.validateMediaType(image.filename(), image.contentType());
+            }
+        }
+    }
+
+    private void validateQueries(ScreenDraft draft) {
+        for (var widget : draft.widgets()) {
+            if ("BAR".equals(widget.type())) {
+                ScreenQueryService.config(json, widget);
             }
         }
     }

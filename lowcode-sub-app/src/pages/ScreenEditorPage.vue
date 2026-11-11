@@ -18,6 +18,8 @@ import { ErrorAlert, PageHeader, PageToolbar, type ErrorTip } from '@crane199709
 import { errorTip, jsonBody } from './data-source'
 import ScreenImage from './ScreenImage.vue'
 import ScreenWidgetContent from './ScreenWidgetContent.vue'
+import ScreenBarProperties from './ScreenBarProperties.vue'
+import { emptyBar, type BarConfig } from './widget-query'
 import { cloneDraft, emptyDraft, resolutions, type ScreenDraft, type ScreenWidget } from './screen'
 
 const route = useRoute()
@@ -180,6 +182,30 @@ function addText() {
   draft.value.widgets.push(widget)
   selectedId.value = widget.id
   commit()
+}
+function addBar() {
+  if (draft.value.widgets.length >= 200) {
+    return
+  }
+  const widget: ScreenWidget = {
+    id: crypto.randomUUID(),
+    type: 'BAR',
+    x: 80,
+    y: 80,
+    width: 1200,
+    height: 700,
+    zIndex: draft.value.widgets.length,
+    config: emptyBar(),
+  }
+  draft.value.widgets.push(widget)
+  selectedId.value = widget.id
+  commit()
+}
+function barChanged(config: BarConfig) {
+  if (selected.value?.type === 'BAR') {
+    selected.value.config = config
+    commit()
+  }
 }
 function normalizeLayers() {
   draft.value.widgets
@@ -355,6 +381,9 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-button :disabled="draft.widgets.length >= 200" @click="addText"
               >添加文本卡</el-button
             >
+            <el-button :disabled="draft.widgets.length >= 200" @click="addBar"
+              >添加柱状图</el-button
+            >
             <el-button :disabled="cursor === 0" @click="restore(-1)">撤销</el-button>
             <el-button :disabled="cursor === history.length - 1" @click="restore(1)"
               >重做</el-button
@@ -416,7 +445,11 @@ onBeforeUnmount(() => observer?.disconnect())
                     @pointercancel="finish"
                     @lostpointercapture="finish"
                   >
-                    <ScreenWidgetContent :widget="widget" :image-base="imageBase" />
+                    <ScreenWidgetContent
+                      :widget="widget"
+                      :image-base="imageBase"
+                      :query-base="`/lowcode/screens/${route.params.id}/draft`"
+                    />
                     <span
                       v-if="selectedId === widget.id"
                       class="resize-handle"
@@ -487,7 +520,15 @@ onBeforeUnmount(() => observer?.disconnect())
                 /></el-select>
               </el-form-item>
               <template v-if="selected">
-                <h3>{{ selected.type === 'TEXT' ? '文本卡' : '图片' }}</h3>
+                <h3>
+                  {{
+                    selected.type === 'TEXT'
+                      ? '文本卡'
+                      : selected.type === 'IMAGE'
+                        ? '图片'
+                        : '基础柱状图'
+                  }}
+                </h3>
                 <template v-if="selected.type === 'TEXT'">
                   <el-form-item label="文字"
                     ><el-input
@@ -585,7 +626,7 @@ onBeforeUnmount(() => observer?.disconnect())
                         value="center" /><el-option label="右对齐" value="right" /></el-select
                   ></el-form-item>
                 </template>
-                <template v-else>
+                <template v-else-if="selected.type === 'IMAGE'">
                   <el-form-item label="图片"
                     ><el-button :loading="uploading" @click="replacementInput?.click()"
                       >替换图片</el-button
@@ -601,6 +642,13 @@ onBeforeUnmount(() => observer?.disconnect())
                         value="cover" /><el-option label="拉伸" value="fill" /></el-select
                   ></el-form-item>
                 </template>
+                <ScreenBarProperties
+                  v-if="selected.type === 'BAR'"
+                  :key="selected.id"
+                  :config="selected.config"
+                  :screen-id="String(route.params.id)"
+                  @change="barChanged"
+                />
                 <div class="widget-actions">
                   <el-button @click="layer(1)">上移一层</el-button
                   ><el-button @click="layer(-1)">下移一层</el-button

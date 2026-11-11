@@ -175,14 +175,6 @@ class ScreenQueryApiTest {
         assertThat(result.get("userTip")).isEqualTo("字段不存在，请重新配置组件");
     }
 
-    void grantAgain() {
-        TestGrants.publish(
-                redisTemplate,
-                TestTokens.TENANT_ID,
-                TestTokens.MEMBERSHIP_ID,
-                List.of("datasource:manage", "dataset:manage", "screen:view", "screen:edit", "screen:publish"));
-    }
-
     @Test
     void publishedQueriesCannotBypassPermissionTenantScopeOrFrozenWidgetConfig() throws Exception {
         String dataset = dataset(SALES);
@@ -244,6 +236,9 @@ class ScreenQueryApiTest {
         String dataset = dataset(SALES);
         var q = query(List.of(Map.of("field", "region")), List.of(measure("amount", "SUM")));
         String screen = screen(dataset, q);
+        assertThat(call(HttpMethod.PUT, "/screens/" + screen + "/draft", draft(dataset, new HashMap<>(), 0))
+                        .get("httpStatus"))
+                .isEqualTo(400);
         for (int interval : List.of(-1, 1, 9)) {
             assertThat(call(HttpMethod.PUT, "/screens/" + screen + "/draft", draft(dataset, q, interval))
                             .get("httpStatus"))
@@ -265,6 +260,17 @@ class ScreenQueryApiTest {
         var invalid = new HashMap<>(q);
         invalid.put("sorts", List.of(Map.of("column", 100, "direction", "ASC")));
         assertThat(preview(screen, dataset, invalid).get("code")).isEqualTo("dataset.queryInvalid");
+    }
+
+    @Test
+    void datasetJsonOperatorsAndQuestionMarkLiteralsKeepTheirMeaningWithBoundFilters() {
+        String dataset = dataset("SELECT CAST('{\"key\":1}' AS jsonb) ? 'key' AS present, '?' AS label, 3 AS amount");
+        var q = query(List.of(Map.of("field", "present"), Map.of("field", "label")), List.of(measure("amount", "SUM")));
+        q.put("filters", List.of(Map.of("field", "label", "operator", "EQ", "values", List.of("?"))));
+        String screen = screen(dataset, q);
+        var result = call(HttpMethod.GET, "/screens/" + screen + "/published/widgets/bar/query", null);
+        assertThat(result.get("code")).isEqualTo("ok");
+        assertThat(rows(result).toString()).isEqualTo("[[true, ?, 3]]");
     }
 
     Map<?, ?> preview(String screen, String dataset, Map<String, Object> q) {

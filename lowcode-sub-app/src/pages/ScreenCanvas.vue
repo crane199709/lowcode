@@ -2,7 +2,7 @@
 import ScreenImage from './ScreenImage.vue'
 import ScreenWidgetContent from './ScreenWidgetContent.vue'
 import type { ScreenDraft, ScreenWidget } from './screen'
-defineProps<{ draft: ScreenDraft; imageBase: string }>()
+defineProps<{ draft: ScreenDraft; imageBase: string; queryBase?: string }>()
 function style(widget: ScreenWidget) {
   return {
     position: 'absolute' as const,
@@ -47,7 +47,7 @@ function style(widget: ScreenWidget) {
       data-testid="playback-widget"
       :style="style(widget)"
     >
-      <ScreenWidgetContent :widget="widget" :image-base="imageBase" />
+      <ScreenWidgetContent :widget="widget" :image-base="imageBase" :query-base="queryBase" />
     </div>
   </div>
 </template>

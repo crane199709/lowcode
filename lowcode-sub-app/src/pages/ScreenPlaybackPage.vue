@@ -123,6 +123,7 @@ onBeforeUnmount(() => {
             data-testid="playback-stage"
             :style="stageStyle"
             :draft="screen.definition"
+            :query-base="`/lowcode/screens/${screen.id}/published`"
             :image-base="`/lowcode/screens/${screen.id}/images`"
           />
         </div>

@@ -52,6 +52,18 @@ public class ScreenQueryService {
     }
 
     private WidgetData execute(ScreenDraft.Widget widget) {
+        Config config = config(json, widget);
+        var result = datasets.query(config.datasetId(), config.query());
+        return new WidgetData(
+                result.columns().stream()
+                        .map(c -> new OutputColumn(c.id(), c.label(), c.type()))
+                        .toList(),
+                result.rows(),
+                result.truncated(),
+                result.maxRows());
+    }
+
+    static Config config(JsonMapper json, ScreenDraft.Widget widget) {
         if (!"BAR".equals(widget.type()) || !widget.isValidConfig()) {
             throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
         }
@@ -61,14 +73,8 @@ public class ScreenQueryService {
         } catch (RuntimeException e) {
             throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
         }
-        var result = datasets.query(config.datasetId(), config.query());
-        return new WidgetData(
-                result.columns().stream()
-                        .map(c -> new OutputColumn(c.id(), c.label(), c.type()))
-                        .toList(),
-                result.rows(),
-                result.truncated(),
-                result.maxRows());
+        DatasetQueryService.validateShape(config.query());
+        return config;
     }
 
     // 屏幕响应由 screen 自己拥有；Controller 不得依赖其他功能包，即使仅在泛型中引用。
