@@ -58,8 +58,15 @@ public class DatasetQueryService {
         dataset.fields().forEach(field -> fields.put(field.name(), field));
         List<Column> columns = new ArrayList<>();
         for (int i = 0; i < query.dimensions().size(); i++) {
-            var field = field(fields, query.dimensions().get(i).field());
-            columns.add(new Column("d" + i, field.displayName(), field.type().name()));
+            var dimension = query.dimensions().get(i);
+            var field = field(fields, dimension.field());
+            if (dimension.dateGrouping() != null && !field.date()) {
+                throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
+            }
+            columns.add(new Column(
+                    "d" + i,
+                    field.displayName(),
+                    dimension.dateGrouping() == null ? field.type().name() : "STRING"));
         }
         for (int i = 0; i < query.measures().size(); i++) {
             var measure = query.measures().get(i);
@@ -85,7 +92,12 @@ public class DatasetQueryService {
             filters.add(new Filter(filter.field(), filter.operator(), values));
         }
         var validated = new Query(query.dimensions(), query.measures(), filters, query.sorts(), query.topN());
-        var result = sources.aggregate(dataset.dataSourceId(), dataset.sql(), validated);
+        var result = dataset.jsonPath() == null
+                ? sources.aggregate(dataset.dataSourceId(), dataset.sql(), validated)
+                : ApiDatasetAggregator.aggregate(
+                        sources.previewDataset(dataset.dataSourceId(), dataset.sql(), dataset.jsonPath()),
+                        dataset.fields(),
+                        validated);
         return new Result(columns, result.rows(), result.truncated(), result.maxRows());
     }
 
@@ -185,7 +197,17 @@ public class DatasetQueryService {
     public record Query(
             List<Dimension> dimensions, List<Measure> measures, List<Filter> filters, List<Sort> sorts, Integer topN) {}
 
-    public record Dimension(String field) {}
+    public record Dimension(String field, DateGrouping dateGrouping) {
+        public Dimension(String field) {
+            this(field, null);
+        }
+    }
+
+    public enum DateGrouping {
+        DAY,
+        MONTH,
+        YEAR
+    }
 
     public record Measure(String field, Aggregation aggregation) {}
 
