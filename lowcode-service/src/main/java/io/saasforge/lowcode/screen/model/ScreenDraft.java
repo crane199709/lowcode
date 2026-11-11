@@ -1,6 +1,7 @@
 package io.saasforge.lowcode.screen.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
@@ -11,10 +12,12 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import tools.jackson.databind.JsonNode;
 
 /** Design Resolution 与 Widget 坐标均为设计像素；修改分辨率不换算已有坐标。 */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record ScreenDraft(
         @Min(640) @Max(7680) int designWidth,
         @Min(640) @Max(7680) int designHeight,
@@ -22,9 +25,11 @@ public record ScreenDraft(
         @NotNull @Pattern(regexp = "#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?")
         String backgroundColor,
 
+        UUID backgroundImageObjectId,
+        @Pattern(regexp = "contain|cover|fill") String backgroundImageFill,
         @NotNull @Size(max = 200) List<@NotNull @Valid Widget> widgets) {
     public static ScreenDraft empty() {
-        return new ScreenDraft(1920, 1080, "#101827", List.of());
+        return new ScreenDraft(1920, 1080, "#101827", null, null, List.of());
     }
 
     @AssertTrue(message = "组件 ID 不得重复")
@@ -42,9 +47,23 @@ public record ScreenDraft(
         return true;
     }
 
+    @JsonIgnore
+    public Set<UUID> imageObjectIds() {
+        var ids = new HashSet<UUID>();
+        if (backgroundImageObjectId != null) {
+            ids.add(backgroundImageObjectId);
+        }
+        for (Widget widget : widgets) {
+            if ("IMAGE".equals(widget.type())) {
+                ids.add(UUID.fromString(widget.config().path("objectId").asString()));
+            }
+        }
+        return ids;
+    }
+
     public record Widget(
             @NotBlank @Size(max = 80) String id,
-            @NotNull @Pattern(regexp = "TEXT|BAR") String type,
+            @NotNull @Pattern(regexp = "TEXT|IMAGE|BAR") String type,
             @Min(0) @Max(7680) int x,
             @Min(0) @Max(7680) int y,
             @Min(1) @Max(7680) int width,
@@ -70,6 +89,14 @@ public record ScreenDraft(
                     return false;
                 }
                 return (refresh == 0 || refresh >= 10) && config.path("query").isObject();
+            }
+            if ("IMAGE".equals(type) && config != null) {
+                return config.isObject()
+                        && config.path("objectId")
+                                .asString("")
+                                .matches("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
+                        && List.of("contain", "cover", "fill")
+                                .contains(config.path("fill").asString(""));
             }
             if (!"TEXT".equals(type) || config == null) {
                 return true;
