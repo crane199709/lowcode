@@ -22,12 +22,15 @@
 
 - `./mvnw verify`：编译并运行全部测试，含架构检查（`ArchitectureTest`）、表与字段注释检查和 SDK 表检查（`SchemaCommentTest`）。提交前必须通过。
 - `./mvnw test -Dtest=<测试类>`：迭代时只跑受影响的测试。
+- `./mvnw verify -Pslow-dialects`：在默认 `verify` 之外，再运行标记为 `slow-dialect` 的测试（目前是 `OracleDataSourceTest`，Oracle 容器启动约一分钟以上）。改动 Oracle 连接或 `ExternalJdbcConnector` 时运行；单独运行用 `./mvnw test -Pslow-dialects -Dtest=OracleDataSourceTest`。
 - `./mvnw verify -DforkCount=N`：调整测试并行的 JVM 数，默认 2。
 - `./mvnw spring-boot:run`：本地启动，所需环境变量见 `src/main/resources/application.yml` 中的注释。
 
 ## 测试
 
 - 集成测试不自行声明容器，用 `SharedContainers`：每个测试类独立建库、独立 Redis 库，属性注册须带 `spring.data.redis.database`。
+- 数据源测试用 `SharedContainers.external*()` 取充当 Tenant 外部库的容器（PostgreSQL、MySQL、SQL Server、Oracle），首次调用时才启动。SQL Server 镜像只有 amd64，Apple Silicon 上需在 Docker Desktop 开启 Rosetta。启动慢的测试打 `@Tag("slow-dialect")`，默认不运行。
+- 改动外部连接或升级驱动时，保留 `DataSourceRedirectTest` 的真实驱动协议回归：SQL Server 和 Oracle 只连接已检查的目标，不支持服务端路由到其他地址或端口。
 - 新增 SDK starter 时，若 starter 的 jar 中带 `io/saasforge/sdk/<模块>/schema.sql`，把它复制为新的 Flyway 迁移；漏了 `SchemaCommentTest` 会失败。
 
 ## 平台升级

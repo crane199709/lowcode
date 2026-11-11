@@ -6,6 +6,7 @@ public enum DataSourceErrorCode implements ErrorCode {
     /** 其他租户、已删除与不存在的数据源同样返回本错误，不泄露它是否存在。 */
     NOT_FOUND("datasource.notFound", 404),
     PARAM_NOT_ALLOWED("datasource.paramNotAllowed", 400),
+    DATABASE_INVALID("datasource.databaseInvalid", 400),
     PASSWORD_REQUIRED("datasource.passwordRequired", 400),
     HOST_BLOCKED("datasource.hostBlocked", 400),
     /**

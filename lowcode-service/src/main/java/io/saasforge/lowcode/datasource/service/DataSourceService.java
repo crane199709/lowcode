@@ -109,17 +109,17 @@ public class DataSourceService {
     }
 
     private void connect(DataSourceType type, ConnectionSettings settings) {
-        checkParams(type, settings);
+        checkConnectionFields(type, settings);
         List<InetAddress> addresses = networkGuard.resolve(settings.host());
         // 与连接失败返回完全相同的错误，不区分主机能否解析
         if (addresses.isEmpty()) {
             throw unreachable();
         }
-        connector.testPostgres(addresses.get(0), settings);
+        connector.testConnection(type, addresses.get(0), settings);
     }
 
     private DataSource toEntity(String name, DataSourceType type, ConnectionSettings settings) {
-        checkParams(type, settings);
+        checkConnectionFields(type, settings);
         // 暂时无法解析的主机允许保存，连接时会再次解析并检查
         networkGuard.resolve(settings.host());
         var dataSource = new DataSource();
@@ -136,7 +136,11 @@ public class DataSourceService {
         return dataSource;
     }
 
-    private static void checkParams(DataSourceType type, ConnectionSettings settings) {
+    private static void checkConnectionFields(DataSourceType type, ConnectionSettings settings) {
+        if (!type.acceptsDatabase(settings.database())) {
+            throw ForgeException.withErrorMessage(
+                    DataSourceErrorCode.DATABASE_INVALID, "Database name is not allowed for " + type);
+        }
         settings.params().forEach((param, value) -> {
             if (!type.allows(param, value)) {
                 throw ForgeException.withErrorMessage(

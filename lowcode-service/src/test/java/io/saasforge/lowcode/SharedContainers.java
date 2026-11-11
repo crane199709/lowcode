@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.JdbcDatabaseContainer;
+import org.testcontainers.mssqlserver.MSSQLServerContainer;
+import org.testcontainers.mysql.MySQLContainer;
+import org.testcontainers.oracle.OracleContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
 
@@ -64,7 +68,32 @@ final class SharedContainers {
     }
 
     private static final String EXTERNAL_USER = "tenant_reader";
+    // 同时满足 SQL Server 的密码复杂度要求
     private static final String EXTERNAL_PASSWORD = "Ext3rnal-Secr3t";
+
+    /** 充当 Tenant 外部数据库的 MySQL，首次调用时启动。 */
+    static ExternalDatabase externalMysql() {
+        return external(MysqlHolder.CONTAINER, MysqlHolder.CONTAINER.getDatabaseName(), 3306);
+    }
+
+    /** 充当 Tenant 外部数据库的 SQL Server（只有 sa 账号），首次调用时启动。 */
+    static ExternalDatabase externalSqlServer() {
+        return external(SqlServerHolder.CONTAINER, "master", 1433);
+    }
+
+    /** 充当 Tenant 外部数据库的 Oracle，库名为服务名；启动慢，只在 slow-dialects profile 中使用。 */
+    static ExternalDatabase externalOracle() {
+        return external(OracleHolder.CONTAINER, OracleHolder.CONTAINER.getDatabaseName(), 1521);
+    }
+
+    private static ExternalDatabase external(JdbcDatabaseContainer<?> container, String database, int port) {
+        return new ExternalDatabase(
+                container.getHost(),
+                container.getMappedPort(port),
+                database,
+                container.getUsername(),
+                container.getPassword());
+    }
 
     /** 为调用的测试类分配一个清空的 Redis 库。 */
     static Redis redis() {
@@ -112,6 +141,38 @@ final class SharedContainers {
                 .withDatabaseName("forge")
                 .withCopyFileToContainer(
                         MountableFile.forClasspathResource("postgres"), "/docker-entrypoint-initdb.d/");
+
+        static {
+            CONTAINER.start();
+        }
+    }
+
+    private static final class MysqlHolder {
+        static final MySQLContainer CONTAINER = new MySQLContainer("mysql:8.4")
+                .withUsername(EXTERNAL_USER)
+                .withPassword(EXTERNAL_PASSWORD);
+
+        static {
+            CONTAINER.start();
+        }
+    }
+
+    // 镜像只有 amd64，Apple Silicon 上经 Rosetta 运行
+    private static final class SqlServerHolder {
+        static final MSSQLServerContainer CONTAINER = new MSSQLServerContainer(
+                        "mcr.microsoft.com/mssql/server:2022-latest")
+                .acceptLicense()
+                .withPassword(EXTERNAL_PASSWORD);
+
+        static {
+            CONTAINER.start();
+        }
+    }
+
+    private static final class OracleHolder {
+        static final OracleContainer CONTAINER = new OracleContainer("gvenzl/oracle-free:23-slim-faststart")
+                .withUsername(EXTERNAL_USER)
+                .withPassword(EXTERNAL_PASSWORD);
 
         static {
             CONTAINER.start();
