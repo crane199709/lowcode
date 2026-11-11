@@ -17,16 +17,22 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.IntStream;
+import net.sf.jsqlparser.parser.CCJSqlParserConstants;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import oracle.jdbc.pool.OracleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +62,109 @@ class ExternalJdbcConnector {
     }
 
     DatasetPreviewResponse preview(DataSourceType type, InetAddress address, ConnectionSettings settings, String sql) {
+        return execute(type, address, settings, sql, null);
+    }
+
+    DatasetPreviewResponse aggregate(
+            DataSourceType type,
+            InetAddress address,
+            ConnectionSettings settings,
+            String sql,
+            DatasetQueryService.Query query) {
+        List<Object> values = new ArrayList<>();
+        List<String> selections = new ArrayList<>();
+        for (int i = 0; i < query.dimensions().size(); i++) {
+            selections.add(identifier(query.dimensions().get(i).field()) + " AS d" + i);
+        }
+        for (int i = 0; i < query.measures().size(); i++) {
+            var measure = query.measures().get(i);
+            String field = identifier(measure.field());
+            String expression = measure.aggregation() == DatasetQueryService.Aggregation.COUNT_DISTINCT
+                    ? "COUNT(DISTINCT " + field + ")"
+                    : measure.aggregation().name() + "(" + field + ")";
+            selections.add(expression + " AS m" + i);
+        }
+        StringBuilder statement = new StringBuilder(
+                "SELECT " + String.join(", ", selections) + " FROM (" + postgresPreparedSql(sql) + ") dataset_rows");
+        List<String> conditions = new ArrayList<>();
+        for (var filter : query.filters()) {
+            String field = identifier(filter.field());
+            List<Object> nonNull =
+                    filter.values().stream().filter(Objects::nonNull).toList();
+            String condition;
+            if (filter.operator() == DatasetQueryService.Operator.BETWEEN) {
+                condition = field + " BETWEEN ? AND ?";
+            } else if (nonNull.isEmpty()) {
+                condition = field + " IS NULL";
+            } else {
+                condition = filter.operator() == DatasetQueryService.Operator.EQ
+                        ? field + " = ?"
+                        : field + " IN (" + String.join(",", Collections.nCopies(nonNull.size(), "?")) + ")";
+                if (nonNull.size() != filter.values().size()) {
+                    condition = "(" + condition + " OR " + field + " IS NULL)";
+                }
+            }
+            values.addAll(nonNull);
+            conditions.add(condition);
+        }
+        if (!conditions.isEmpty()) {
+            statement.append(" WHERE ").append(String.join(" AND ", conditions));
+        }
+        if (!query.dimensions().isEmpty()) {
+            statement
+                    .append(" GROUP BY ")
+                    .append(String.join(
+                            ",",
+                            IntStream.rangeClosed(1, query.dimensions().size())
+                                    .mapToObj(Integer::toString)
+                                    .toList()));
+        }
+        List<String> orders = new ArrayList<>();
+        Set<Integer> sorted = new HashSet<>();
+        for (var sort : query.sorts()) {
+            orders.add((sort.column() + 1) + " " + sort.direction() + " NULLS LAST");
+            sorted.add(sort.column());
+        }
+        // Top N 的聚合值相同时按 Dimension 决胜，避免刷新时条目跳动。
+        for (int i = 0; i < query.dimensions().size(); i++) {
+            if (!sorted.contains(i)) {
+                orders.add((i + 1) + " ASC NULLS LAST");
+            }
+        }
+        if (!orders.isEmpty()) {
+            statement.append(" ORDER BY ").append(String.join(",", orders));
+        }
+        if (query.topN() != null) {
+            statement.append(" LIMIT ?");
+            values.add(query.topN());
+        }
+        return execute(type, address, settings, statement.toString(), values);
+    }
+
+    private static String postgresPreparedSql(String sql) {
+        // pgJDBC 把未引用的 ? 当成绑定标记；只转义语法 token，保留字符串、标识符与注释原文。
+        var parser = CCJSqlParserUtil.newParser(sql);
+        StringBuilder result = new StringBuilder();
+        int cursor = 0;
+        for (var token = parser.getNextToken(); token.kind != 0; token = parser.getNextToken()) {
+            if (token.image.contains("?")
+                    && token.kind != CCJSqlParserConstants.S_CHAR_LITERAL
+                    && token.kind != CCJSqlParserConstants.S_QUOTED_IDENTIFIER
+                    && token.kind != CCJSqlParserConstants.LINE_COMMENT
+                    && token.kind != CCJSqlParserConstants.MULTI_LINE_COMMENT) {
+                result.append(sql, cursor, token.absoluteBegin - 1).append(token.image.replace("?", "??"));
+                cursor = token.absoluteEnd - 1;
+            }
+        }
+        return result.append(sql, cursor, sql.length()).toString();
+    }
+
+    private static String identifier(String field) {
+        return "\"" + field.replace("\"", "\"\"") + "\"";
+    }
+
+    private DatasetPreviewResponse execute(
+            DataSourceType type, InetAddress address, ConnectionSettings settings, String sql, List<Object> values) {
         return withConnection(
                 type,
                 address,
@@ -64,10 +173,16 @@ class ExternalJdbcConnector {
                     connection.setReadOnly(true);
                     // PostgreSQL 只有事务内才会下发 READ ONLY；关闭自动提交也让预览结束时总是回滚。
                     connection.setAutoCommit(false);
-                    try (var statement = connection.createStatement()) {
+                    try (var statement =
+                            values == null ? connection.createStatement() : connection.prepareStatement(sql)) {
                         statement.setQueryTimeout(sqlProperties.timeoutSeconds());
                         statement.setMaxRows(sqlProperties.maxRows() + 1);
-                        if (!statement.execute(sql)) {
+                        if (values != null) {
+                            for (int i = 0; i < values.size(); i++) {
+                                ((PreparedStatement) statement).setObject(i + 1, values.get(i));
+                            }
+                        }
+                        if (!(values == null ? statement.execute(sql) : ((PreparedStatement) statement).execute())) {
                             throw new ForgeException(DatasetErrorCode.QUERY_FAILED);
                         }
                         try (var result = statement.getResultSet()) {

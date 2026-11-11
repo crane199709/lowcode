@@ -63,7 +63,7 @@ public record ScreenDraft(
 
     public record Widget(
             @NotBlank @Size(max = 80) String id,
-            @NotNull @Pattern(regexp = "TEXT|IMAGE") String type,
+            @NotNull @Pattern(regexp = "TEXT|IMAGE|BAR") String type,
             @Min(0) @Max(7680) int x,
             @Min(0) @Max(7680) int y,
             @Min(1) @Max(7680) int width,
@@ -74,6 +74,22 @@ public record ScreenDraft(
         @AssertTrue(message = "组件配置无效")
         @JsonIgnore
         public boolean isValidConfig() {
+            if ("BAR".equals(type)) {
+                if (config == null
+                        || !config.isObject()
+                        || !config.path("datasetId").isString()
+                        || !config.path("refreshSeconds").isIntegralNumber()
+                        || !config.path("refreshSeconds").canConvertToInt()) {
+                    return false;
+                }
+                int refresh = config.path("refreshSeconds").asInt();
+                try {
+                    UUID.fromString(config.path("datasetId").asString());
+                } catch (IllegalArgumentException e) {
+                    return false;
+                }
+                return (refresh == 0 || refresh >= 10) && config.path("query").isObject();
+            }
             if ("IMAGE".equals(type) && config != null) {
                 return config.isObject()
                         && config.path("objectId")

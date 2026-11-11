@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import ScreenImage from './ScreenImage.vue'
+import ScreenBarChart from './ScreenBarChart.vue'
 import type { ScreenWidget } from './screen'
-defineProps<{ widget: ScreenWidget; imageBase: string }>()
+defineProps<{ widget: ScreenWidget; imageBase: string; queryBase?: string }>()
 </script>
 <template>
   <ScreenImage
@@ -11,5 +12,10 @@ defineProps<{ widget: ScreenWidget; imageBase: string }>()
     :image-base="imageBase"
     alt="图片组件"
   />
-  <template v-else>{{ widget.config.text }}</template>
+  <ScreenBarChart
+    v-else-if="widget.type === 'BAR' && queryBase"
+    :widget="widget"
+    :query-base="queryBase"
+  />
+  <template v-else-if="widget.type === 'TEXT'">{{ widget.config.text }}</template>
 </template>
