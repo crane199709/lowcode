@@ -89,6 +89,110 @@ class ScreenQueryApiTest {
     }
 
     @Test
+    void lineWidgetSavesPublishesAndQueriesMultipleMeasures() {
+        String dataset = dataset(SALES);
+        var q = query(List.of(Map.of("field", "region")), List.of(measure("amount", "SUM"), measure("amount", "AVG")));
+        var definition = new HashMap<>(draft(dataset, q, 0));
+        var widget = new HashMap<>((Map<String, Object>) ((List<?>) definition.get("widgets")).get(0));
+        widget.put("type", "LINE");
+        definition.put("widgets", List.of(widget));
+        var created = call(HttpMethod.POST, "/screens", Map.of("name", "销售趋势", "draft", definition));
+        assertThat(created.get("httpStatus")).isEqualTo(201);
+        String screen = id(created);
+        assertThat(call(HttpMethod.POST, "/screens/" + screen + "/publish", null)
+                        .get("code"))
+                .isEqualTo("ok");
+        assertThat(rows(call(HttpMethod.GET, "/screens/" + screen + "/published/widgets/bar/query", null))
+                        .toString())
+                .isEqualTo("[[east, 30.0, 15.0], [north, 7.0, 7.0], [west, 12.0, 6.0]]");
+    }
+
+    @Test
+    void stackedWidgetSavesPublishesAndKeepsSparseGroupsAndNullValues() {
+        String dataset = dataset(SALES);
+        var q = query(
+                List.of(Map.of("field", "region"), Map.of("field", "product")), List.of(measure("amount", "SUM")));
+        var definition = new HashMap<>(draft(dataset, q, 0));
+        var widget = new HashMap<>((Map<String, Object>) ((List<?>) definition.get("widgets")).get(0));
+        widget.put("type", "STACKED_BAR");
+        definition.put("widgets", List.of(widget));
+        var created = call(HttpMethod.POST, "/screens", Map.of("name", "销售渠道", "draft", definition));
+        assertThat(created.get("httpStatus")).isEqualTo(201);
+        String screen = id(created);
+        assertThat(call(HttpMethod.POST, "/screens/" + screen + "/publish", null)
+                        .get("code"))
+                .isEqualTo("ok");
+        assertThat(rows(call(HttpMethod.GET, "/screens/" + screen + "/published/widgets/bar/query", null))
+                        .toString())
+                .isEqualTo("[[east, A, 30.0], [east, B, null], [north, E, 7.0]]");
+    }
+
+    @Test
+    void pieWidgetQueriesOneMeasureAndPersistsDonutWithoutChangingAggregation() {
+        String dataset = dataset(SALES);
+        var q = query(List.of(Map.of("field", "region")), List.of(measure("amount", "AVG")));
+        var definition = new HashMap<>(draft(dataset, q, 0));
+        var widget = new HashMap<>((Map<String, Object>) ((List<?>) definition.get("widgets")).get(0));
+        widget.put("type", "PIE");
+        widget.put("config", Map.of("datasetId", dataset, "query", q, "refreshSeconds", 0, "donut", true));
+        definition.put("widgets", List.of(widget));
+        var created = call(HttpMethod.POST, "/screens", Map.of("name", "销售分布", "draft", definition));
+        assertThat(created.get("httpStatus")).isEqualTo(201);
+        String screen = id(created);
+        assertThat(call(HttpMethod.POST, "/screens/" + screen + "/publish", null)
+                        .get("code"))
+                .isEqualTo("ok");
+        assertThat(call(HttpMethod.GET, "/screens/" + screen + "/published", null)
+                        .toString())
+                .contains("donut=true");
+        assertThat(rows(call(HttpMethod.GET, "/screens/" + screen + "/published/widgets/bar/query", null))
+                        .toString())
+                .isEqualTo("[[east, 15.0], [north, 7.0], [west, 6.0]]");
+    }
+
+    @Test
+    void chartSpecificInvalidCombinationsCannotBeSavedOrQueried() {
+        String dataset = dataset(SALES);
+        var valid = query(List.of(Map.of("field", "region")), List.of(measure("amount", "SUM")));
+        String screen = screen(dataset, valid);
+        for (String type : List.of("LINE", "STACKED_BAR", "PIE")) {
+            for (var q : List.of(
+                    query(List.of(), List.of(measure("amount", "SUM"))),
+                    query(
+                            List.of(Map.of("field", "region"), Map.of("field", "product"), Map.of("field", "amount")),
+                            List.of(measure("amount", "SUM"))),
+                    query(List.of(Map.of("field", "region")), List.of()))) {
+                var definition = new HashMap<>(draft(dataset, q, 0));
+                var widget = new HashMap<>((Map<String, Object>) ((List<?>) definition.get("widgets")).get(0));
+                widget.put("type", type);
+                widget.put("config", Map.of("datasetId", dataset, "query", q, "refreshSeconds", 0, "donut", false));
+                definition.put("widgets", List.of(widget));
+                assertThat(call(HttpMethod.PUT, "/screens/" + screen + "/draft", definition)
+                                .get("httpStatus"))
+                        .isEqualTo(400);
+                assertThat(call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget)
+                                .get("httpStatus"))
+                        .isEqualTo(400);
+            }
+        }
+        for (String type : List.of("STACKED_BAR", "PIE")) {
+            var q = query(
+                    type.equals("STACKED_BAR")
+                            ? List.of(Map.of("field", "region"), Map.of("field", "product"))
+                            : List.of(Map.of("field", "region")),
+                    List.of(measure("amount", "SUM"), measure("amount", "AVG")));
+            var definition = new HashMap<>(draft(dataset, q, 0));
+            var widget = new HashMap<>((Map<String, Object>) ((List<?>) definition.get("widgets")).get(0));
+            widget.put("type", type);
+            widget.put("config", Map.of("datasetId", dataset, "query", q, "refreshSeconds", 0, "donut", false));
+            definition.put("widgets", List.of(widget));
+            assertThat(call(HttpMethod.PUT, "/screens/" + screen + "/draft", definition)
+                            .get("httpStatus"))
+                    .isEqualTo(400);
+        }
+    }
+
+    @Test
     void staticFiltersRunBeforeGroupingAndTopNAppliesAfterSorting() {
         String dataset = dataset(SALES);
         var q = query(List.of(Map.of("field", "region")), List.of(measure("amount", "SUM")));

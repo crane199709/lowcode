@@ -1,4 +1,4 @@
-import type { BarConfig } from './widget-query'
+import type { ChartConfig } from './widget-query'
 export interface TextConfig {
   text: string
   fontSize: number
@@ -24,7 +24,7 @@ export type ScreenWidget = WidgetLayout &
   (
     | { type: 'TEXT'; config: TextConfig }
     | { type: 'IMAGE'; config: ImageConfig }
-    | { type: 'BAR'; config: BarConfig }
+    | { type: 'BAR' | 'LINE' | 'STACKED_BAR' | 'PIE'; config: ChartConfig }
   )
 export interface ScreenDraft {
   designWidth: number

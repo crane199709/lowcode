@@ -63,18 +63,26 @@ public record ScreenDraft(
 
     public record Widget(
             @NotBlank @Size(max = 80) String id,
-            @NotNull @Pattern(regexp = "TEXT|IMAGE|BAR") String type,
+
+            @NotNull @Pattern(regexp = "TEXT|IMAGE|BAR|LINE|STACKED_BAR|PIE")
+            String type,
+
             @Min(0) @Max(7680) int x,
             @Min(0) @Max(7680) int y,
             @Min(1) @Max(7680) int width,
             @Min(1) @Max(7680) int height,
             @Min(0) @Max(10000) int zIndex,
             @NotNull JsonNode config) {
+        @JsonIgnore
+        public boolean isQueryWidget() {
+            return "BAR".equals(type) || "LINE".equals(type) || "STACKED_BAR".equals(type) || "PIE".equals(type);
+        }
+
         // config 保留按 Widget 类型演进的接口，但已支持类型必须在保存前验证，不能把坏配置留给渲染器。
         @AssertTrue(message = "组件配置无效")
         @JsonIgnore
         public boolean isValidConfig() {
-            if ("BAR".equals(type)) {
+            if (isQueryWidget()) {
                 if (config == null
                         || !config.isObject()
                         || !config.path("datasetId").isString()
@@ -88,7 +96,9 @@ public record ScreenDraft(
                 } catch (IllegalArgumentException e) {
                     return false;
                 }
-                return (refresh == 0 || refresh >= 10) && config.path("query").isObject();
+                return (refresh == 0 || refresh >= 10)
+                        && config.path("query").isObject()
+                        && (!"PIE".equals(type) || config.path("donut").isBoolean());
             }
             if ("IMAGE".equals(type) && config != null) {
                 return config.isObject()

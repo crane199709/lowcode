@@ -64,7 +64,7 @@ public class ScreenQueryService {
     }
 
     static Config config(JsonMapper json, ScreenDraft.Widget widget) {
-        if (!"BAR".equals(widget.type()) || !widget.isValidConfig()) {
+        if (!widget.isQueryWidget() || !widget.isValidConfig()) {
             throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
         }
         Config config;
@@ -74,6 +74,23 @@ public class ScreenQueryService {
             throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
         }
         DatasetQueryService.validateShape(config.query());
+        if (("LINE".equals(widget.type()) || "PIE".equals(widget.type()))
+                && config.query().dimensions().size() != 1) {
+            throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
+        }
+        if ("STACKED_BAR".equals(widget.type())
+                && (config.query().dimensions().size() != 2
+                        || config.query().measures().size() != 1
+                        || config.query()
+                                .dimensions()
+                                .get(0)
+                                .field()
+                                .equals(config.query().dimensions().get(1).field()))) {
+            throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
+        }
+        if ("PIE".equals(widget.type()) && config.query().measures().size() != 1) {
+            throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
+        }
         return config;
     }
 
@@ -86,5 +103,5 @@ public class ScreenQueryService {
 
     public record BindingField(String name, String displayName, String type, String role, boolean date) {}
 
-    public record Config(UUID datasetId, DatasetQueryService.Query query, int refreshSeconds) {}
+    public record Config(UUID datasetId, DatasetQueryService.Query query, int refreshSeconds, Boolean donut) {}
 }

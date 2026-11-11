@@ -5,6 +5,9 @@ import {
   ElButton,
   ElCheckbox,
   ElEmpty,
+  ElDropdown,
+  ElDropdownMenu,
+  ElDropdownItem,
   ElForm,
   ElFormItem,
   ElInput,
@@ -18,8 +21,8 @@ import { ErrorAlert, PageHeader, PageToolbar, type ErrorTip } from '@crane199709
 import { errorTip, jsonBody } from './data-source'
 import ScreenImage from './ScreenImage.vue'
 import ScreenWidgetContent from './ScreenWidgetContent.vue'
-import ScreenBarProperties from './ScreenBarProperties.vue'
-import { emptyBar, type BarConfig } from './widget-query'
+import ScreenChartProperties from './ScreenChartProperties.vue'
+import { chartNames, emptyChart, type ChartConfig, type ChartType } from './widget-query'
 import { cloneDraft, emptyDraft, resolutions, type ScreenDraft, type ScreenWidget } from './screen'
 
 const route = useRoute()
@@ -183,26 +186,31 @@ function addText() {
   selectedId.value = widget.id
   commit()
 }
-function addBar() {
+function addComponent(type: 'TEXT' | 'IMAGE' | ChartType) {
+  if (type === 'TEXT') addText()
+  else if (type === 'IMAGE') imageInput.value?.click()
+  else addChart(type)
+}
+function addChart(type: ChartType) {
   if (draft.value.widgets.length >= 200) {
     return
   }
   const widget: ScreenWidget = {
     id: crypto.randomUUID(),
-    type: 'BAR',
+    type,
     x: 80,
     y: 80,
     width: 1200,
     height: 700,
     zIndex: draft.value.widgets.length,
-    config: emptyBar(),
+    config: emptyChart(type),
   }
   draft.value.widgets.push(widget)
   selectedId.value = widget.id
   commit()
 }
-function barChanged(config: BarConfig) {
-  if (selected.value?.type === 'BAR') {
+function chartChanged(config: ChartConfig) {
+  if (selected.value && ['BAR', 'LINE', 'STACKED_BAR', 'PIE'].includes(selected.value.type)) {
     selected.value.config = config
     commit()
   }
@@ -373,17 +381,19 @@ onBeforeUnmount(() => observer?.disconnect())
               accept=".png,.jpg,.jpeg,.webp,.gif"
               @change="uploadImage($event, 'replace')"
             />
-            <el-button
-              :disabled="uploading || draft.widgets.length >= 200"
-              @click="imageInput?.click()"
-              >添加图片</el-button
-            >
-            <el-button :disabled="draft.widgets.length >= 200" @click="addText"
-              >添加文本卡</el-button
-            >
-            <el-button :disabled="draft.widgets.length >= 200" @click="addBar"
-              >添加柱状图</el-button
-            >
+            <el-dropdown @command="addComponent">
+              <el-button :disabled="uploading || draft.widgets.length >= 200">添加组件</el-button>
+              <template #dropdown
+                ><el-dropdown-menu>
+                  <el-dropdown-item command="TEXT">文本卡</el-dropdown-item>
+                  <el-dropdown-item command="IMAGE">图片</el-dropdown-item>
+                  <el-dropdown-item command="BAR">柱状图</el-dropdown-item>
+                  <el-dropdown-item command="LINE">折线图</el-dropdown-item>
+                  <el-dropdown-item command="STACKED_BAR">堆叠柱状图</el-dropdown-item>
+                  <el-dropdown-item command="PIE">饼图</el-dropdown-item>
+                </el-dropdown-menu></template
+              >
+            </el-dropdown>
             <el-button :disabled="cursor === 0" @click="restore(-1)">撤销</el-button>
             <el-button :disabled="cursor === history.length - 1" @click="restore(1)"
               >重做</el-button
@@ -526,7 +536,7 @@ onBeforeUnmount(() => observer?.disconnect())
                       ? '文本卡'
                       : selected.type === 'IMAGE'
                         ? '图片'
-                        : '基础柱状图'
+                        : chartNames[selected.type]
                   }}
                 </h3>
                 <template v-if="selected.type === 'TEXT'">
@@ -642,12 +652,18 @@ onBeforeUnmount(() => observer?.disconnect())
                         value="cover" /><el-option label="拉伸" value="fill" /></el-select
                   ></el-form-item>
                 </template>
-                <ScreenBarProperties
-                  v-if="selected.type === 'BAR'"
+                <ScreenChartProperties
+                  v-if="
+                    selected.type === 'BAR' ||
+                    selected.type === 'LINE' ||
+                    selected.type === 'STACKED_BAR' ||
+                    selected.type === 'PIE'
+                  "
                   :key="selected.id"
                   :config="selected.config"
+                  :type="selected.type"
                   :screen-id="String(route.params.id)"
-                  @change="barChanged"
+                  @change="chartChanged"
                 />
                 <div class="widget-actions">
                   <el-button @click="layer(1)">上移一层</el-button
