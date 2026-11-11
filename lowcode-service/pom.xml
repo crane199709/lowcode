@@ -129,6 +129,11 @@
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc17</artifactId>
         </dependency>
+        <!-- Tenant 自有 HTTP API 的请求；用自定义 DNS 解析保证连接的是检查过的地址，见 ExternalApiConnector -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

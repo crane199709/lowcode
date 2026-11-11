@@ -63,15 +63,15 @@ class OracleDataSourceTest {
         assertThat(test(request())).isEqualTo("ok");
 
         var wrongPassword = request();
-        wrongPassword.put("password", "wrong-Passw0rd");
+        databaseOf(wrongPassword).put("password", "wrong-Passw0rd");
         assertThat(test(wrongPassword)).isEqualTo("datasource.authFailed");
 
         var missingService = request();
-        missingService.put("database", "no_such_service");
+        databaseOf(missingService).put("database", "no_such_service");
         assertThat(test(missingService)).isEqualTo("datasource.databaseNotFound");
 
         var closedPort = request();
-        closedPort.put("port", 1);
+        databaseOf(closedPort).put("port", 1);
         assertThat(test(closedPort)).isEqualTo("datasource.unreachable");
     }
 
@@ -90,7 +90,7 @@ class OracleDataSourceTest {
     @ValueSource(strings = {"freepdb1)(ADDRESS=(HOST=10.0.0.1))", "freepdb1?oracle.net.wallet_location=x", "a b"})
     void rejectsServiceNamesThatCouldRewriteTheDescriptor(String serviceName) {
         var body = request();
-        body.put("database", serviceName);
+        databaseOf(body).put("database", serviceName);
         assertThat(exchange(HttpMethod.POST, "/data-sources", body).get("code"))
                 .isEqualTo("datasource.databaseInvalid");
         assertThat(test(body)).isEqualTo("datasource.databaseInvalid");
@@ -99,7 +99,7 @@ class OracleDataSourceTest {
     @Test
     void rejectsDriverParams() {
         var body = request();
-        body.put("params", Map.of("oracle.net.wallet_location", "/tmp"));
+        databaseOf(body).put("params", Map.of("oracle.net.wallet_location", "/tmp"));
         assertThat(test(body)).isEqualTo("datasource.paramNotAllowed");
     }
 
@@ -107,13 +107,20 @@ class OracleDataSourceTest {
         var body = new HashMap<String, Object>();
         body.put("name", "Oracle 外部库");
         body.put("type", "ORACLE");
-        body.put("host", external.host());
-        body.put("port", external.port());
-        body.put("database", external.database());
-        body.put("username", external.username());
-        body.put("password", external.password());
-        body.put("params", Map.of());
+        var database = new HashMap<String, Object>();
+        database.put("host", external.host());
+        database.put("port", external.port());
+        database.put("database", external.database());
+        database.put("username", external.username());
+        database.put("password", external.password());
+        database.put("params", Map.of());
+        body.put("database", database);
         return body;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> databaseOf(Map<String, Object> body) {
+        return (Map<String, Object>) body.get("database");
     }
 
     private Object test(Map<String, Object> body) {

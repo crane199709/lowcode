@@ -1,7 +1,10 @@
 package io.saasforge.lowcode.datasource.controller;
 
 import io.saasforge.lowcode.datasource.entity.DataSource;
-import io.saasforge.lowcode.datasource.model.ConnectionSettings;
+import io.saasforge.lowcode.datasource.model.ApiAuthType;
+import io.saasforge.lowcode.datasource.model.ApiConnectionTestResponse;
+import io.saasforge.lowcode.datasource.model.ApiMethod;
+import io.saasforge.lowcode.datasource.model.DataSourceRequest;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
 import io.saasforge.lowcode.datasource.service.DataSourceService;
 import io.saasforge.sdk.audit.AuditLog;
@@ -11,12 +14,6 @@ import io.saasforge.sdk.web.PageQuery;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +45,7 @@ class DataSourceController {
     @ResponseStatus(HttpStatus.CREATED)
     @AuditLog(action = "datasource.create", resourceType = "dataSource", resourceId = "#result.data().id()")
     public ApiResponse<DataSourceResponse> create(@Valid @RequestBody DataSourceRequest request) {
-        return ApiResponse.created(
-                response(dataSourceService.create(request.name(), request.type(), request.settings())));
+        return ApiResponse.created(response(createDataSource(request)));
     }
 
     @Operation(summary = "分页列出当前租户的数据源，最近更新在前")
@@ -61,21 +57,20 @@ class DataSourceController {
         return ApiResponse.page(items, query.toPageMeta(dataSourceService.count()));
     }
 
-    @Operation(summary = "读取数据源，不含密码")
+    @Operation(summary = "读取数据源，不含密码与请求头值")
     @GetMapping("/{id}")
     @RequiresPermission("datasource:view")
     public ApiResponse<DataSourceResponse> get(@PathVariable UUID id) {
         return ApiResponse.ok(response(dataSourceService.get(id)));
     }
 
-    @Operation(summary = "修改数据源，密码留空表示不修改")
+    @Operation(summary = "修改数据源，密码与请求头值留空表示不修改")
     @PutMapping("/{id}")
     @RequiresPermission("datasource:manage")
     @AuditLog(action = "datasource.update", resourceType = "dataSource", resourceId = "#id")
     public ApiResponse<DataSourceResponse> update(
             @PathVariable UUID id, @Valid @RequestBody DataSourceRequest request) {
-        return ApiResponse.ok(
-                response(dataSourceService.update(id, request.name(), request.type(), request.settings())));
+        return ApiResponse.ok(response(updateDataSource(id, request)));
     }
 
     @Operation(summary = "删除数据源")
@@ -87,66 +82,80 @@ class DataSourceController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "测试尚未保存的连接，失败时以错误码返回原因")
+    @Operation(summary = "测试尚未保存的连接，失败时以错误码返回原因；API 返回目标接口的状态码")
     @PostMapping("/connection-test")
     @RequiresPermission("datasource:manage")
-    public ApiResponse<Void> testConnection(@Valid @RequestBody DataSourceRequest request) {
-        dataSourceService.testConnection(request.type(), request.settings());
-        return ApiResponse.ok();
+    public ApiResponse<ApiConnectionTestResponse> testConnection(@Valid @RequestBody DataSourceRequest request) {
+        if (request.type() == DataSourceType.API) {
+            return ApiResponse.ok(dataSourceService.testApiConnection(request.apiSettings()));
+        }
+        dataSourceService.testConnection(request.type(), request.databaseSettings());
+        return ApiResponse.<ApiConnectionTestResponse>ok(null);
     }
 
-    @Operation(summary = "测试编辑中的已保存数据源，密码留空时用已保存的密码")
+    @Operation(summary = "测试编辑中的已保存数据源，密码与请求头值留空时用已保存的值")
     @PostMapping("/{id}/connection-test")
     @RequiresPermission("datasource:manage")
-    public ApiResponse<Void> testSavedConnection(@PathVariable UUID id, @Valid @RequestBody DataSourceRequest request) {
-        dataSourceService.testConnection(id, request.type(), request.settings());
-        return ApiResponse.ok();
+    public ApiResponse<ApiConnectionTestResponse> testSavedConnection(
+            @PathVariable UUID id, @Valid @RequestBody DataSourceRequest request) {
+        if (request.type() == DataSourceType.API) {
+            return ApiResponse.ok(dataSourceService.testApiConnection(id, request.apiSettings()));
+        }
+        dataSourceService.testConnection(id, request.type(), request.databaseSettings());
+        return ApiResponse.<ApiConnectionTestResponse>ok(null);
+    }
+
+    private DataSource createDataSource(DataSourceRequest request) {
+        if (request.type() == DataSourceType.API) {
+            return dataSourceService.createApi(request.name(), request.apiSettings());
+        }
+        return dataSourceService.createDatabase(request.name(), request.type(), request.databaseSettings());
+    }
+
+    private DataSource updateDataSource(UUID id, DataSourceRequest request) {
+        if (request.type() == DataSourceType.API) {
+            return dataSourceService.updateApi(id, request.name(), request.apiSettings());
+        }
+        return dataSourceService.updateDatabase(id, request.name(), request.type(), request.databaseSettings());
     }
 
     private DataSourceResponse response(DataSource dataSource) {
+        DataSourceType type = DataSourceType.valueOf(dataSource.getType());
+        if (type == DataSourceType.API) {
+            ApiAuthType authType = ApiAuthType.valueOf(dataSource.getApiAuth());
+            return new DataSourceResponse(
+                    dataSource.getId(),
+                    dataSource.getName(),
+                    type,
+                    null,
+                    null,
+                    null,
+                    authType == ApiAuthType.BASIC ? dataSource.getUsername() : null,
+                    null,
+                    new ApiConnectionResponse(
+                            dataSource.getApiUrl(),
+                            ApiMethod.valueOf(dataSource.getApiMethod()),
+                            dataSource.getApiBody(),
+                            authType,
+                            dataSource.getApiHeaderName()),
+                    dataSource.getCreatedAt(),
+                    dataSource.getUpdatedAt());
+        }
         return new DataSourceResponse(
                 dataSource.getId(),
                 dataSource.getName(),
-                DataSourceType.valueOf(dataSource.getType()),
+                type,
                 dataSource.getHost(),
                 dataSource.getPort(),
                 dataSource.getDatabaseName(),
                 dataSource.getUsername(),
                 dataSourceService.paramsOf(dataSource),
+                null,
                 dataSource.getCreatedAt(),
                 dataSource.getUpdatedAt());
     }
 
-    /**
-     * 约束与 data_sources 表一致。主机只允许主机名或 IP 字面量的字符，排除 PostgreSQL URL 的多主机写法（逗号）与路径、参数分隔符。
-     *
-     * @param password 新建时必填；编辑时留空表示不修改
-     * @param params 按类型白名单校验，不在白名单内的参数整体拒绝
-     */
-    record DataSourceRequest(
-            @NotBlank @Size(max = 120) String name,
-            @NotNull DataSourceType type,
-
-            @NotBlank @Size(max = 253) @Pattern(regexp = "[A-Za-z0-9.:\\-]+")
-            String host,
-
-            @NotNull @Min(1) @Max(65535) Integer port,
-            @NotBlank @Size(max = 128) String database,
-            @NotBlank @Size(max = 128) String username,
-            @Size(max = 256) String password,
-            Map<String, String> params) {
-        ConnectionSettings settings() {
-            return new ConnectionSettings(host, port, database, username, password, params);
-        }
-
-        /** 不输出密码，避免请求被记录到日志。 */
-        @Override
-        public String toString() {
-            return "DataSourceRequest[name=" + name + ", type=" + type + ", " + settings() + "]";
-        }
-    }
-
-    /** 不含密码：任何接口都不回显密码，编辑表单的密码框始终为空。 */
+    /** 不含密码与请求头值：任何接口都不回显它们，编辑表单的对应输入框始终为空。 */
     record DataSourceResponse(
             UUID id,
             String name,
@@ -156,6 +165,10 @@ class DataSourceController {
             String database,
             String username,
             Map<String, String> params,
+            ApiConnectionResponse api,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt) {}
+
+    /** API 请求配置的响应模型，不含请求头值与 Basic 密码。 */
+    record ApiConnectionResponse(String url, ApiMethod method, String body, ApiAuthType authType, String headerName) {}
 }

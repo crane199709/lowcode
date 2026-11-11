@@ -97,22 +97,22 @@ class DataSourceApiTest {
                 .isEqualTo("ok");
 
         var wrongPassword = request("测试");
-        wrongPassword.put("password", "wrong");
+        databaseOf(wrongPassword).put("password", "wrong");
         Map<?, ?> authFailed = exchange(HttpMethod.POST, "/data-sources/connection-test", wrongPassword);
         assertThat(authFailed.get("code")).isEqualTo("datasource.authFailed");
         assertThat(authFailed.get("userTip")).isEqualTo("账号或密码错误");
 
         var missingDatabase = request("测试");
-        missingDatabase.put("database", "no_such_db");
+        databaseOf(missingDatabase).put("database", "no_such_db");
         assertThat(exchange(HttpMethod.POST, "/data-sources/connection-test", missingDatabase)
                         .get("code"))
                 .isEqualTo("datasource.databaseNotFound");
 
         // 关闭的端口与无法解析的主机得到同一个原因，不暴露端口是否开放
         var closedPort = request("测试");
-        closedPort.put("port", 1);
+        databaseOf(closedPort).put("port", 1);
         var unknownHost = request("测试");
-        unknownHost.put("host", "no-such-host.invalid");
+        databaseOf(unknownHost).put("host", "no-such-host.invalid");
         var responses = new ArrayList<Map<?, ?>>();
         for (var unreachable : List.of(closedPort, unknownHost)) {
             Map<?, ?> failed = exchange(HttpMethod.POST, "/data-sources/connection-test", unreachable);
@@ -135,8 +135,8 @@ class DataSourceApiTest {
         for (var change : List.<Map<String, Object>>of(
                 Map.of("host", "203.0.113.10"), Map.of("port", 15432), Map.of("username", "other"))) {
             var body = request("防外泄");
-            body.put("password", "");
-            body.putAll(change);
+            databaseOf(body).put("password", "");
+            databaseOf(body).putAll(change);
             assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", body)
                             .get("code"))
                     .as(change.toString())
@@ -155,7 +155,7 @@ class DataSourceApiTest {
         // 元数据地址、私有网段、IPv6 私有网段与「任意地址」（多数系统上连到本机）
         for (String host : List.of("169.254.169.254", "10.1.2.3", "fd00::1", "0.0.0.0")) {
             var blocked = request("内网");
-            blocked.put("host", host);
+            databaseOf(blocked).put("host", host);
             for (var call : List.of(
                     exchange(HttpMethod.POST, "/data-sources", blocked),
                     exchange(HttpMethod.PUT, "/data-sources/" + id, blocked),
@@ -178,7 +178,7 @@ class DataSourceApiTest {
                 Map.of("socketFactory", "org.springframework.context.support.ClassPathXmlApplicationContext"),
                 Map.of("sslmode", "verify-full"))) {
             var body = request("参数");
-            body.put("params", params);
+            databaseOf(body).put("params", params);
             for (var call : List.of(
                     exchange(HttpMethod.POST, "/data-sources", body),
                     exchange(HttpMethod.POST, "/data-sources/connection-test", body))) {
@@ -188,15 +188,33 @@ class DataSourceApiTest {
         }
         // 多主机写法与 URL 分隔符不能经主机字段混入拼装的 URL
         var multiHost = request("多主机");
-        multiHost.put("host", "a.example.com,10.0.0.1");
+        databaseOf(multiHost).put("host", "a.example.com,10.0.0.1");
         assertThat(exchange(HttpMethod.POST, "/data-sources", multiHost).get("code"))
                 .isEqualTo("request.invalid");
     }
 
     @Test
+    void databaseFieldsAreValidatedAtTheRequestBoundary() throws Exception {
+        var noHost = request("缺主机");
+        databaseOf(noHost).remove("host");
+        Map<?, ?> failure = exchange(HttpMethod.POST, "/data-sources", noHost);
+        assertThat(failure.get("httpStatus")).isEqualTo(400);
+        assertThat(failure.get("code")).isEqualTo("request.invalid");
+        assertThat((List<?>) failure.get("errors"))
+                .<Object>extracting(error -> ((Map<?, ?>) error).get("field"))
+                .contains("database.host");
+
+        var noPort = request("缺端口");
+        databaseOf(noPort).remove("port");
+        assertThat((List<?>) exchange(HttpMethod.POST, "/data-sources", noPort).get("errors"))
+                .<Object>extracting(error -> ((Map<?, ?>) error).get("field"))
+                .contains("database.port");
+    }
+
+    @Test
     void passwordIsRequiredOnCreateAndKeptWhenLeftBlankOnEdit() throws Exception {
         var noPassword = request("无密码");
-        noPassword.remove("password");
+        databaseOf(noPassword).remove("password");
         assertThat(exchange(HttpMethod.POST, "/data-sources", noPassword).get("code"))
                 .isEqualTo("datasource.passwordRequired");
 
@@ -204,7 +222,7 @@ class DataSourceApiTest {
                         .get("data"))
                 .get("id");
         var renamed = request("新名");
-        renamed.put("password", "");
+        databaseOf(renamed).put("password", "");
         Map<?, ?> updated = exchange(HttpMethod.PUT, "/data-sources/" + id, renamed);
         assertThat(((Map<?, ?>) updated.get("data")).get("name")).isEqualTo("新名");
 
@@ -213,7 +231,7 @@ class DataSourceApiTest {
                         .get("code"))
                 .isEqualTo("ok");
         var wrongPassword = request("新名");
-        wrongPassword.put("password", "wrong");
+        databaseOf(wrongPassword).put("password", "wrong");
         exchange(HttpMethod.PUT, "/data-sources/" + id, wrongPassword);
         assertThat(exchange(HttpMethod.POST, "/data-sources/" + id + "/connection-test", renamed)
                         .get("code"))
@@ -304,13 +322,20 @@ class DataSourceApiTest {
         var body = new HashMap<String, Object>();
         body.put("name", name);
         body.put("type", "POSTGRESQL");
-        body.put("host", external.host());
-        body.put("port", external.port());
-        body.put("database", external.database());
-        body.put("username", external.username());
-        body.put("password", external.password());
-        body.put("params", Map.of("sslmode", "disable"));
+        var database = new HashMap<String, Object>();
+        database.put("host", external.host());
+        database.put("port", external.port());
+        database.put("database", external.database());
+        database.put("username", external.username());
+        database.put("password", external.password());
+        database.put("params", Map.of("sslmode", "disable"));
+        body.put("database", database);
         return body;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> databaseOf(Map<String, Object> body) {
+        return (Map<String, Object>) body.get("database");
     }
 
     private Map<?, ?> exchange(HttpMethod method, String uri, Object body) throws Exception {

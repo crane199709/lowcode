@@ -12,7 +12,7 @@ import {
   type ErrorTip,
 } from '@crane199709/ui'
 import DataSourceFormDrawer from './DataSourceFormDrawer.vue'
-import { errorTip, typeLabels, type DataSource } from './data-source'
+import { errorTip, sourceAddress, typeLabels, type DataSource } from './data-source'
 
 const { t } = useI18n({
   useScope: 'local',
@@ -108,14 +108,11 @@ onMounted(() => load())
         }}</template>
       </el-table-column>
       <el-table-column :label="t('address')" min-width="240" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.host }}:{{ row.port }}/{{ row.database }}</template>
+        <template #default="{ row }">{{ sourceAddress(row as DataSource) || '—' }}</template>
       </el-table-column>
-      <el-table-column
-        :label="t('username')"
-        min-width="120"
-        show-overflow-tooltip
-        prop="username"
-      />
+      <el-table-column :label="t('username')" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.username || '—' }}</template>
+      </el-table-column>
       <el-table-column :label="t('updatedAt')" width="180">
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>

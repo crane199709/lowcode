@@ -73,14 +73,18 @@ class DataSourceRedirectTest {
                     .uri("/data-sources/connection-test")
                     .header("Authorization", "Bearer " + TestTokens.forTenant(TestTokens.TENANT_ID))
                     .body(Map.of(
-                            "name", "不可信数据库",
-                            "type", type,
-                            "host", "127.0.0.1",
-                            "port", server.getLocalPort(),
-                            "database", "test",
-                            "username", "reader",
-                            "password", "test-password",
-                            "params", type.equals("SQLSERVER") ? Map.of("encrypt", "false") : Map.of()))
+                            "name",
+                            "不可信数据库",
+                            "type",
+                            type,
+                            "database",
+                            Map.of(
+                                    "host", "127.0.0.1",
+                                    "port", server.getLocalPort(),
+                                    "database", "test",
+                                    "username", "reader",
+                                    "password", "test-password",
+                                    "params", type.equals("SQLSERVER") ? Map.of("encrypt", "false") : Map.of())))
                     .exchange((request, response) -> response.bodyTo(Map.class));
             redirect.get(15, TimeUnit.SECONDS);
             target.setSoTimeout(200);

@@ -68,15 +68,15 @@ class DataSourceDialectTest {
         assertThat(test(request(type))).isEqualTo("ok");
 
         var wrongPassword = request(type);
-        wrongPassword.put("password", "wrong-Passw0rd");
+        databaseOf(wrongPassword).put("password", "wrong-Passw0rd");
         assertThat(test(wrongPassword)).isEqualTo("datasource.authFailed");
 
         var missingDatabase = request(type);
-        missingDatabase.put("database", "no_such_db");
+        databaseOf(missingDatabase).put("database", "no_such_db");
         assertThat(test(missingDatabase)).isEqualTo("datasource.databaseNotFound");
 
         var closedPort = request(type);
-        closedPort.put("port", 1);
+        databaseOf(closedPort).put("port", 1);
         assertThat(test(closedPort)).isEqualTo("datasource.unreachable");
     }
 
@@ -100,7 +100,7 @@ class DataSourceDialectTest {
                 directory.resolve("service-client.p12").toString());
         try {
             var body = request("MYSQL");
-            body.put("params", Map.of("sslMode", "REQUIRED"));
+            databaseOf(body).put("params", Map.of("sslMode", "REQUIRED"));
             assertThat(test(body)).isEqualTo("ok");
         } finally {
             if (previous == null) {
@@ -120,7 +120,7 @@ class DataSourceDialectTest {
     })
     void acceptsWhitelistedParams(String type, String param, String value) {
         var body = request(type);
-        body.put("params", Map.of(param, value));
+        databaseOf(body).put("params", Map.of(param, value));
         assertThat(exchange(HttpMethod.POST, "/data-sources", body).get("httpStatus"))
                 .isEqualTo(201);
     }
@@ -129,7 +129,7 @@ class DataSourceDialectTest {
     @CsvSource({"MYSQL, test?allowLoadLocalInfile=true", "SQLSERVER, master;databaseName=master"})
     void databaseNameCannotInjectConnectionProperties(String type, String database) {
         var body = request(type);
-        body.put("database", database);
+        databaseOf(body).put("database", database);
         // 若把库名中的分隔符当作 URL 参数，会连上原本存在的 test / master；整体作为库名则找不到该库。
         assertThat(test(body)).isEqualTo("datasource.databaseNotFound");
     }
@@ -149,7 +149,7 @@ class DataSourceDialectTest {
     })
     void rejectsDangerousParams(String type, String param, String value) {
         var body = request(type);
-        body.put("params", Map.of(param, value));
+        databaseOf(body).put("params", Map.of(param, value));
         assertThat(exchange(HttpMethod.POST, "/data-sources", body).get("code"))
                 .isEqualTo("datasource.paramNotAllowed");
         assertThat(test(body)).isEqualTo("datasource.paramNotAllowed");
@@ -169,20 +169,27 @@ class DataSourceDialectTest {
         var body = new HashMap<String, Object>();
         body.put("name", type + " 外部库");
         body.put("type", type);
-        body.put("host", external.host());
-        body.put("port", external.port());
-        body.put("database", external.database());
-        body.put("username", external.username());
-        body.put("password", external.password());
+        var database = new HashMap<String, Object>();
+        database.put("host", external.host());
+        database.put("port", external.port());
+        database.put("database", external.database());
+        database.put("username", external.username());
+        database.put("password", external.password());
         // MySQL 8 的 caching_sha2_password 在不用 SSL 时须取服务端公钥；SQL Server 容器为自签证书
-        body.put(
+        database.put(
                 "params",
                 switch (type) {
                     case "MYSQL" -> Map.of("sslMode", "DISABLED", "allowPublicKeyRetrieval", "true");
                     case "SQLSERVER" -> Map.of("encrypt", "false");
                     default -> Map.of();
                 });
+        body.put("database", database);
         return body;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> databaseOf(Map<String, Object> body) {
+        return (Map<String, Object>) body.get("database");
     }
 
     private Object test(Map<String, Object> body) {

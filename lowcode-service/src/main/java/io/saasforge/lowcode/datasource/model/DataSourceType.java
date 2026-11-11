@@ -17,7 +17,9 @@ public enum DataSourceType {
             "sslMode", Set.of("DISABLED", "PREFERRED", "REQUIRED"),
             "allowPublicKeyRetrieval", Set.of("true", "false"))),
     SQLSERVER(Map.of("encrypt", Set.of("true", "false"), "trustServerCertificate", Set.of("true", "false"))),
-    ORACLE(Map.of());
+    ORACLE(Map.of()),
+    // API 类没有 JDBC 连接参数，其请求配置见 ApiSettings
+    API(Map.of());
 
     // Oracle 服务名直接拼进连接描述符，括号、等号等字符可改写描述符（如另指一个地址），只允许服务名本身的字符
     private static final Pattern ORACLE_SERVICE_NAME = Pattern.compile("[A-Za-z0-9._-]+");
@@ -33,8 +35,14 @@ public enum DataSourceType {
         return values != null && values.contains(value);
     }
 
+    /** API 类没有库名与连接参数，数据库类按各自的连接方式校验。 */
+    public boolean isDatabase() {
+        return this != API;
+    }
+
     /** 库名（Oracle 为服务名）能否安全地放进连接地址；其余类型的库名经编码或属性传入，不受字符限制。 */
     public boolean acceptsDatabase(String database) {
-        return this != ORACLE || ORACLE_SERVICE_NAME.matcher(database).matches();
+        return isDatabase()
+                && (this != ORACLE || ORACLE_SERVICE_NAME.matcher(database).matches());
     }
 }

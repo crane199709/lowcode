@@ -18,6 +18,25 @@ const items = [
     updatedAt: '2026-11-10T18:42:31+08:00',
   },
   {
+    id: '0193a000-0000-7000-8000-000000000006',
+    name: '区域销售汇总接口（经营分析大屏）',
+    type: 'API',
+    host: null,
+    port: null,
+    database: null,
+    username: 'report-api',
+    params: null,
+    api: {
+      url: 'https://bi.example.com/open-api/v1/sales/region-summary?tenant=east',
+      method: 'GET',
+      body: '',
+      authType: 'BASIC',
+      headerName: '',
+    },
+    createdAt: '2026-10-10T09:30:00+08:00',
+    updatedAt: '2026-11-10T20:05:14+08:00',
+  },
+  {
     id: '0193a000-0000-7000-8000-000000000002',
     name: '仓储库存',
     type: 'POSTGRESQL',
@@ -138,6 +157,56 @@ for (const [label, width, height] of viewports) {
       await expect(page).toHaveScreenshot(`datasources-create-mysql-${label}.png`)
     })
 
+    test('新增 API 数据源显示接口字段', async ({ page }) => {
+      await mockList(page, items)
+      await open(page, 'datasources', manage)
+      await page.getByRole('button', { name: '新增' }).click()
+      const drawer = page.getByRole('dialog', { name: '新增数据源' })
+      await drawer.getByLabel('类型').click({ force: true })
+      await page.getByRole('option', { name: 'API', exact: true }).click()
+      await expect(drawer.getByLabel('接口地址')).toBeVisible()
+      await expect(drawer.getByLabel('主机')).toHaveCount(0)
+      await drawer
+        .locator('.el-form-item')
+        .filter({ hasText: '请求方法' })
+        .locator('.el-select__wrapper')
+        .click()
+      await page.getByRole('option', { name: 'POST', exact: true }).click()
+      await expect(drawer.getByLabel('请求体（JSON）')).toBeVisible()
+      await drawer
+        .locator('.el-form-item')
+        .filter({ hasText: '认证方式' })
+        .locator('.el-select__wrapper')
+        .click()
+      await page.getByRole('option', { name: '自定义请求头', exact: true }).click()
+      await drawer.getByLabel('名称', { exact: true }).fill('区域销售汇总接口')
+      await drawer
+        .getByLabel('接口地址')
+        .fill('https://bi.example.com/open-api/v1/sales/region-summary')
+      await drawer.getByLabel('请求体（JSON）').fill('{"tenant":"east","region":"华东"}')
+      await drawer.getByLabel('请求头名称').fill('X-Api-Key')
+      await drawer.getByLabel('请求头值').fill('sk-live-2b6f8c1d9e')
+      await drawer
+        .locator('.el-drawer__body')
+        .evaluate((element) => (element as HTMLElement).scrollTo({ top: 0 }))
+      await expect(page).toHaveScreenshot(`datasources-create-api-${label}.png`)
+    })
+
+    test('编辑 API 数据源', async ({ page }) => {
+      await mockList(page, items)
+      await open(page, 'datasources', manage)
+      await page
+        .getByRole('row', { name: /区域销售汇总接口/ })
+        .getByRole('button', { name: '编辑' })
+        .click()
+      const drawer = page.getByRole('dialog', { name: '编辑数据源' })
+      const api = items.find((item) => item.type === 'API')!
+      await expect(drawer.getByLabel('接口地址')).toHaveValue(api.api!.url)
+      await expect(drawer.getByLabel('账号')).toHaveValue('report-api')
+      await expect(drawer.getByLabel('密码')).toHaveValue('')
+      await expect(page).toHaveScreenshot(`datasources-edit-api-${label}.png`)
+    })
+
     test('编辑 SQL Server 数据源', async ({ page }) => {
       await mockList(page, items)
       await open(page, 'datasources', manage)
@@ -193,8 +262,13 @@ for (const [label, width, height] of viewports) {
         await expect(drawer.getByLabel('端口')).toHaveValue(String(port))
         await drawer.getByRole('button', { name: '测试连接' }).click()
         await expect(drawer.getByText('连接成功', { exact: true })).toBeVisible()
-        expect(requests.at(-1)).toMatchObject({ method: 'POST', body: { type, port, params } })
-        expect((requests.at(-1)!.body as { params: unknown }).params).toEqual(params)
+        expect(requests.at(-1)).toMatchObject({
+          method: 'POST',
+          body: { type, database: { port, params } },
+        })
+        expect(
+          (requests.at(-1)!.body as { database: { params: unknown } }).database.params,
+        ).toEqual(params)
       }
 
       // 手填端口不会被类型默认值覆盖，旧类型参数也不会混入保存请求。
@@ -208,9 +282,11 @@ for (const [label, width, height] of viewports) {
       expect(requests).toHaveLength(5)
       expect(requests.at(-1)).toMatchObject({
         method: 'PUT',
-        body: { type: 'ORACLE', port: 11521 },
+        body: { type: 'ORACLE', database: { port: 11521 } },
       })
-      expect((requests.at(-1)!.body as { params: unknown }).params).toEqual({})
+      expect((requests.at(-1)!.body as { database: { params: unknown } }).database.params).toEqual(
+        {},
+      )
     })
 
     test('测试连接期间切换类型不会显示旧类型的成功结果', async ({ page }) => {

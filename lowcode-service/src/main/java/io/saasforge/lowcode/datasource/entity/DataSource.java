@@ -18,6 +18,14 @@ public class DataSource extends AuditableEntity {
     private String passwordEncrypted;
     // 白名单连接参数的 JSON 对象文本
     private String params;
+    // API 类：请求地址、方法、静态 JSON 请求体、认证方式与自定义请求头名称
+    private String apiUrl;
+    private String apiMethod;
+    private String apiBody;
+    private String apiAuth;
+    private String apiHeaderName;
+    // AES-GCM 密文；API 自定义请求头的值，明文只在请求时解密
+    private String apiHeaderValueEncrypted;
 
     public UUID getId() {
         return id;
@@ -91,10 +99,58 @@ public class DataSource extends AuditableEntity {
         this.params = params;
     }
 
-    /** 不输出密码密文。 */
+    public String getApiUrl() {
+        return apiUrl;
+    }
+
+    public void setApiUrl(String apiUrl) {
+        this.apiUrl = apiUrl;
+    }
+
+    public String getApiMethod() {
+        return apiMethod;
+    }
+
+    public void setApiMethod(String apiMethod) {
+        this.apiMethod = apiMethod;
+    }
+
+    public String getApiBody() {
+        return apiBody;
+    }
+
+    public void setApiBody(String apiBody) {
+        this.apiBody = apiBody;
+    }
+
+    public String getApiAuth() {
+        return apiAuth;
+    }
+
+    public void setApiAuth(String apiAuth) {
+        this.apiAuth = apiAuth;
+    }
+
+    public String getApiHeaderName() {
+        return apiHeaderName;
+    }
+
+    public void setApiHeaderName(String apiHeaderName) {
+        this.apiHeaderName = apiHeaderName;
+    }
+
+    public String getApiHeaderValueEncrypted() {
+        return apiHeaderValueEncrypted;
+    }
+
+    public void setApiHeaderValueEncrypted(String apiHeaderValueEncrypted) {
+        this.apiHeaderValueEncrypted = apiHeaderValueEncrypted;
+    }
+
+    /** 不输出密码密文与请求头值密文。 */
     @Override
     public String toString() {
         return "DataSource[id=" + id + ", name=" + name + ", type=" + type + ", host=" + host + ", port=" + port
-                + ", databaseName=" + databaseName + "]";
+                + ", databaseName=" + databaseName + ", apiUrl=" + apiUrl + "]";
     }
 }
