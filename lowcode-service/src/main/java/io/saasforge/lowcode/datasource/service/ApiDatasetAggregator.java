@@ -26,7 +26,7 @@ final class ApiDatasetAggregator {
 
     static DatasetPreviewResponse aggregate(
             DatasetPreviewResponse input, List<FieldResponse> fields, DatasetQueryService.Query query) {
-        if (input.truncated()) {
+        if (input.truncated() && query.mode() != DatasetQueryService.Mode.DETAIL) {
             throw new ForgeException(DatasetErrorCode.API_AGGREGATION_TOO_MANY_ROWS, input.maxRows());
         }
         Map<String, FieldResponse> savedFields = new HashMap<>();
@@ -34,6 +34,21 @@ final class ApiDatasetAggregator {
         Map<String, Integer> indexes = new HashMap<>();
         for (int i = 0; i < input.fields().size(); i++) {
             indexes.put(input.fields().get(i).name(), i);
+        }
+        if (query.mode() == DatasetQueryService.Mode.DETAIL) {
+            List<List<Object>> rows = new ArrayList<>();
+            for (var row : input.rows()) {
+                if (query.filters().stream().allMatch(filter -> matches(row, indexes, savedFields, filter))) {
+                    List<Object> selected = new ArrayList<>();
+                    query.fields().forEach(name -> selected.add(cell(row, indexes, savedFields, name)));
+                    rows.add(selected);
+                }
+            }
+            sort(rows, query, query.fields().size());
+            if (query.topN() != null && rows.size() > query.topN()) {
+                rows = new ArrayList<>(rows.subList(0, query.topN()));
+            }
+            return new DatasetPreviewResponse(List.of(), rows, input.truncated(), input.maxRows());
         }
         Map<List<Object>, List<MeasureState>> groups = new LinkedHashMap<>();
         if (query.dimensions().isEmpty()) {
@@ -78,6 +93,14 @@ final class ApiDatasetAggregator {
             group.getValue().forEach(state -> row.add(state.result()));
             rows.add(row);
         }
+        sort(rows, query, query.dimensions().size());
+        if (query.topN() != null && rows.size() > query.topN()) {
+            rows = new ArrayList<>(rows.subList(0, query.topN()));
+        }
+        return new DatasetPreviewResponse(List.of(), rows, false, input.maxRows());
+    }
+
+    private static void sort(List<List<Object>> rows, DatasetQueryService.Query query, int tieColumns) {
         rows.sort((left, right) -> {
             for (var sort : query.sorts()) {
                 Object a = left.get(sort.column());
@@ -89,7 +112,7 @@ final class ApiDatasetAggregator {
                             : comparison;
                 }
             }
-            for (int i = 0; i < query.dimensions().size(); i++) {
+            for (int i = 0; i < tieColumns; i++) {
                 int comparison = compareNullable(left.get(i), right.get(i));
                 if (comparison != 0) {
                     return comparison;
@@ -97,10 +120,6 @@ final class ApiDatasetAggregator {
             }
             return 0;
         });
-        if (query.topN() != null && rows.size() > query.topN()) {
-            rows = new ArrayList<>(rows.subList(0, query.topN()));
-        }
-        return new DatasetPreviewResponse(List.of(), rows, false, input.maxRows());
     }
 
     private static Object bucket(Object value, DatasetQueryService.DateGrouping grouping, String fieldLabel) {

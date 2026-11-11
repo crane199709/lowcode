@@ -290,6 +290,103 @@ class ApiDatasetQueryTest {
         QueryResultAssertions.integerTopN(rows(preview(screen, dataset, q)));
     }
 
+    @Test
+    void detailTableKeepsDuplicateRowsSelectedOrderAndReportsTheRawLimit() {
+        String dataset = dataset("[{\"region\":\"east\",\"amount\":2},{\"region\":\"east\",\"amount\":2},"
+                + "{\"region\":\"west\",\"amount\":1}]");
+        var q = query(List.of(), List.of());
+        q.put("mode", "DETAIL");
+        q.put("fields", List.of("amount", "region"));
+        q.put("sorts", List.of(Map.of("column", 0, "direction", "DESC")));
+        String screen = typedScreen(dataset, q, "DETAIL_TABLE");
+        var result = call(HttpMethod.GET, "/screens/" + screen + "/published/widgets/bar/query", null);
+        QueryResultAssertions.rows(
+                rows(result), new Object[] {2, "east"}, new Object[] {2, "east"}, new Object[] {1, "west"});
+        assertThat(((Map<?, ?>) result.get("data")).get("columns").toString()).contains("f0", "amount", "f1", "region");
+        var previewWidget = new HashMap<>(widget(dataset, q));
+        previewWidget.put("type", "DETAIL_TABLE");
+        q.put("filters", List.of(Map.of("field", "region", "operator", "EQ", "values", List.of("east"))));
+        q.put("topN", 1);
+        QueryResultAssertions.rows(
+                rows(call(HttpMethod.POST, "/screens/" + screen + "/draft/query", previewWidget)),
+                new Object[] {2, "east"});
+        q.put("fields", List.of("missing"));
+        assertThat(call(HttpMethod.POST, "/screens/" + screen + "/draft/query", previewWidget)
+                        .get("code"))
+                .isEqualTo("dataset.fieldMissing");
+        respond("[{\"amount\":1},{\"amount\":2},{\"amount\":3},{\"amount\":4},{\"amount\":5},"
+                + "{\"amount\":6},{\"amount\":7},{\"amount\":8},{\"amount\":9}]");
+        result = call(HttpMethod.GET, "/screens/" + screen + "/published/widgets/bar/query", null);
+        assertThat(rows(result)).hasSize(8);
+        assertThat(((Map<?, ?>) result.get("data")).get("truncated")).isEqualTo(true);
+        assertThat(((Map<?, ?>) result.get("data")).get("maxRows")).isEqualTo(8);
+    }
+
+    @Test
+    void summaryAndIndicatorUseFullAggregatesAndRejectIllegalFieldCombinations() {
+        String dataset = dataset("[{\"region\":\"east\",\"amount\":2},{\"region\":\"east\",\"amount\":2},"
+                + "{\"region\":\"west\",\"amount\":1}]");
+        var q = query(List.of(Map.of("field", "region")), List.of(Map.of("field", "amount", "aggregation", "SUM")));
+        String summary = typedScreen(dataset, q, "SUMMARY_TABLE");
+        QueryResultAssertions.rows(rows(published(summary)), new Object[] {"east", 4}, new Object[] {"west", 1});
+        q.put("dimensions", List.of());
+        String indicator = typedScreen(dataset, q, "INDICATOR");
+        QueryResultAssertions.rows(rows(published(indicator)), new Object[] {5});
+        var base = new HashMap<>(widget(dataset, q));
+        base.put("type", "INDICATOR");
+        var config = new HashMap<>((Map<String, Object>) base.get("config"));
+        config.putAll(Map.of("title", "销售总额", "unit", "万元", "numberFormat", "DECIMAL_2"));
+        base.put("config", config);
+        q.put("dimensions", List.of(Map.of("field", "region")));
+        assertThat(call(HttpMethod.POST, "/screens/" + indicator + "/draft/query", base)
+                        .get("code"))
+                .isEqualTo("screen.widgetConfigInvalid");
+        q.put("dimensions", List.of());
+        q.put(
+                "measures",
+                List.of(
+                        Map.of("field", "amount", "aggregation", "SUM"),
+                        Map.of("field", "amount", "aggregation", "AVG")));
+        assertThat(call(HttpMethod.POST, "/screens/" + indicator + "/draft/query", base)
+                        .get("code"))
+                .isEqualTo("screen.widgetConfigInvalid");
+        q.put("measures", List.of(Map.of("field", "amount", "aggregation", "SUM")));
+        config.put("numberFormat", "UNKNOWN");
+        assertThat(call(HttpMethod.POST, "/screens/" + indicator + "/draft/query", base)
+                        .get("code"))
+                .isEqualTo("screen.widgetConfigInvalid");
+        base.put("type", "DETAIL_TABLE");
+        assertThat(call(HttpMethod.POST, "/screens/" + indicator + "/draft/query", base)
+                        .get("code"))
+                .isEqualTo("screen.widgetConfigInvalid");
+        q.put("mode", "DETAIL");
+        q.put("fields", List.of("region"));
+        assertThat(call(HttpMethod.POST, "/screens/" + indicator + "/draft/query", base)
+                        .get("code"))
+                .isEqualTo("dataset.queryInvalid");
+        q.put("measures", List.of());
+        q.put("fields", List.of("region", "region"));
+        assertThat(call(HttpMethod.POST, "/screens/" + indicator + "/draft/query", base)
+                        .get("code"))
+                .isEqualTo("dataset.queryInvalid");
+    }
+
+    String typedScreen(String dataset, Map<String, Object> q, String type) {
+        var widget = new HashMap<>(widget(dataset, q));
+        widget.put("type", type);
+        var config = new HashMap<>((Map<String, Object>) widget.get("config"));
+        config.putAll(Map.of("title", "销售总额", "unit", "元", "numberFormat", "DECIMAL_2"));
+        widget.put("config", config);
+        var draft = new HashMap<>(draft(dataset, q));
+        draft.put("widgets", List.of(widget));
+        var result = call(HttpMethod.POST, "/screens", Map.of("name", "表格与指标", "draft", draft));
+        assertThat(result.get("httpStatus")).isEqualTo(201);
+        String id = id(result);
+        assertThat(call(HttpMethod.POST, "/screens/" + id + "/publish", null).get("code"))
+                .isEqualTo("ok");
+        return id;
+    }
+
     List<Map<String, String>> allMeasures() {
         return List.of("SUM", "AVG", "COUNT", "COUNT_DISTINCT", "MAX", "MIN").stream()
                 .map(a -> Map.of("field", "amount", "aggregation", a))

@@ -91,6 +91,26 @@ public class ScreenQueryService {
         if ("PIE".equals(widget.type()) && config.query().measures().size() != 1) {
             throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
         }
+        boolean detail = config.query().mode() == DatasetQueryService.Mode.DETAIL;
+        if (detail != "DETAIL_TABLE".equals(widget.type())
+                || ("INDICATOR".equals(widget.type())
+                        && (!config.query().dimensions().isEmpty()
+                                || config.query().measures().size() != 1))
+                || ("SUMMARY_TABLE".equals(widget.type())
+                        && config.query().dimensions().isEmpty())) {
+            throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
+        }
+        if ("INDICATOR".equals(widget.type())) {
+            var c = widget.config();
+            if (!c.path("title").isString()
+                    || c.path("title").asString().length() > 200
+                    || !c.path("unit").isString()
+                    || c.path("unit").asString().length() > 40
+                    || !List.of("AUTO", "INTEGER", "DECIMAL_2")
+                            .contains(c.path("numberFormat").asString(""))) {
+                throw new ForgeException(ScreenErrorCode.WIDGET_CONFIG_INVALID);
+            }
+        }
         return config;
     }
 
