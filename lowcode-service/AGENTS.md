@@ -31,7 +31,8 @@
 ## 测试
 
 - 集成测试不自行声明容器，用 `SharedContainers`：每个测试类独立建库、独立 Redis 库，属性注册须带 `spring.data.redis.database`。
-- 数据源测试用 `SharedContainers.external*()` 取充当 Tenant 外部库的容器（PostgreSQL、MySQL、SQL Server、Oracle），首次调用时才启动。SQL Server 镜像只有 amd64，Apple Silicon 上需在 Docker Desktop 开启 Rosetta。启动慢的测试打 `@Tag("slow-dialect")`，默认不运行。
+- 数据源测试用 `SharedContainers.external*()` 取充当 Tenant 外部库的容器（PostgreSQL、MySQL、SQL Server、Oracle、ClickHouse），首次调用时才启动。SQL Server 镜像只有 amd64，Apple Silicon 上需在 Docker Desktop 开启 Rosetta。启动慢的测试打 `@Tag("slow-dialect")`，默认不运行。
+- ClickHouse 用 `SharedContainers.externalClickHouse()` 的 HTTP 容器，`ClickHouseDataSourceTest` 随默认 `verify` 运行，覆盖连接、元数据、SQL Dataset 与禁止重定向；只开放 `ssl=true/false`，HTTPS 保留主机名校验。
 - 改动外部连接或升级驱动时，保留 `DataSourceRedirectTest` 的真实驱动协议回归：SQL Server 和 Oracle 只连接已检查的目标，不支持服务端路由到其他地址或端口。
 - 新增 SDK starter 时，若 starter 的 jar 中带 `io/saasforge/sdk/<模块>/schema.sql`，把它复制为新的 Flyway 迁移；漏了 `SchemaCommentTest` 会失败。
 

@@ -17,7 +17,7 @@ import net.sf.jsqlparser.util.deparser.StatementDeParser;
 final class SqlQueryGuard {
     private SqlQueryGuard() {}
 
-    static void check(String sql, DataSourceType type) {
+    static String check(String sql, DataSourceType type) {
         try {
             var statements = CCJSqlParserUtil.parseStatements(
                     sql, parser -> parser.withSquareBracketQuotation(type == DataSourceType.SQLSERVER));
@@ -37,6 +37,8 @@ final class SqlQueryGuard {
                 }
             }
             deparser.visit(select, null);
+            // HTTP 方言需包裹外层 LIMIT，移除语句分隔符与注释后才能安全地嵌入子查询。
+            return select.toString();
         } catch (JSQLParserException | TokenMgrException e) {
             throw new ForgeException(DatasetErrorCode.SQL_NOT_ALLOWED);
         }

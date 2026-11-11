@@ -18,6 +18,7 @@ public enum DataSourceType {
             "allowPublicKeyRetrieval", Set.of("true", "false"))),
     SQLSERVER(Map.of("encrypt", Set.of("true", "false"), "trustServerCertificate", Set.of("true", "false"))),
     ORACLE(Map.of()),
+    CLICKHOUSE(Map.of("ssl", Set.of("true", "false"))),
     // API 类没有 JDBC 连接参数，其请求配置见 ApiSettings
     API(Map.of());
 

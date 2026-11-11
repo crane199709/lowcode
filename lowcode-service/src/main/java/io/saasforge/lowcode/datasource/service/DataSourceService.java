@@ -43,6 +43,7 @@ public class DataSourceService {
     private final SecretCipher secretCipher;
     private final ExternalJdbcConnector connector;
     private final ExternalApiConnector apiConnector;
+    private final ExternalClickHouseConnector clickHouse;
     private final JsonMapper jsonMapper;
     private final ApiDatasetReader apiDatasets;
 
@@ -52,6 +53,7 @@ public class DataSourceService {
             SecretCipher secretCipher,
             ExternalJdbcConnector connector,
             ExternalApiConnector apiConnector,
+            ExternalClickHouseConnector clickHouse,
             ApiDatasetReader apiDatasets,
             JsonMapper jsonMapper) {
         this.dataSourceMapper = dataSourceMapper;
@@ -59,6 +61,7 @@ public class DataSourceService {
         this.secretCipher = secretCipher;
         this.connector = connector;
         this.apiConnector = apiConnector;
+        this.clickHouse = clickHouse;
         this.apiDatasets = apiDatasets;
         this.jsonMapper = jsonMapper;
     }
@@ -167,23 +170,29 @@ public class DataSourceService {
         if (type == DataSourceType.API) {
             throw new ForgeException(DatasetErrorCode.SOURCE_NOT_SUPPORTED);
         }
-        SqlQueryGuard.check(sql, type);
+        String normalized = SqlQueryGuard.check(sql, type);
         ConnectionSettings settings = metadataSettings(saved, type);
-        return connector.preview(type, metadataAddress(settings), settings, sql);
+        return type == DataSourceType.CLICKHOUSE
+                ? clickHouse.preview(metadataAddress(settings), settings, normalized)
+                : connector.preview(type, metadataAddress(settings), settings, sql);
     }
 
     public List<TableResponse> tables(UUID id) {
         DataSource saved = get(id);
         DataSourceType type = DataSourceType.valueOf(saved.getType());
         ConnectionSettings settings = metadataSettings(saved, type);
-        return connector.tables(type, metadataAddress(settings), settings);
+        return type == DataSourceType.CLICKHOUSE
+                ? clickHouse.tables(metadataAddress(settings), settings)
+                : connector.tables(type, metadataAddress(settings), settings);
     }
 
     public List<ColumnResponse> columns(UUID id, TableResponse table) {
         DataSource saved = get(id);
         DataSourceType type = DataSourceType.valueOf(saved.getType());
         ConnectionSettings settings = metadataSettings(saved, type);
-        return connector.columns(type, metadataAddress(settings), settings, table);
+        return type == DataSourceType.CLICKHOUSE
+                ? clickHouse.columns(metadataAddress(settings), settings, table)
+                : connector.columns(type, metadataAddress(settings), settings, table);
     }
 
     private ConnectionSettings metadataSettings(DataSource saved, DataSourceType type) {
@@ -260,7 +269,11 @@ public class DataSourceService {
         if (addresses.isEmpty()) {
             throw unreachable();
         }
-        connector.testConnection(type, addresses.get(0), settings);
+        if (type == DataSourceType.CLICKHOUSE) {
+            clickHouse.testConnection(addresses.get(0), settings);
+        } else {
+            connector.testConnection(type, addresses.get(0), settings);
+        }
     }
 
     private ApiConnectionTestResponse connectApi(ApiSettings settings) {
