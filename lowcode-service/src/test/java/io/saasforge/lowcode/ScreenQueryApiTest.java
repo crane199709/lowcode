@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.saasforge.sdk.abac.DataScope;
 import io.saasforge.sdk.core.SubjectAttributes;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -233,8 +235,7 @@ class ScreenQueryApiTest {
         assertThat(rows(preview(screen, dataset, q)).toString()).isEqualTo("[[null, null, 0, 0, null, null]]");
         q.put("dimensions", List.of(Map.of("field", "region")));
         assertThat(rows(preview(screen, dataset, q))).isEmpty();
-        q.put("filters", List.of(Map.of("field", "amount", "operator", "EQ", "values", java.util.Arrays.asList((Object)
-                null))));
+        q.put("filters", List.of(Map.of("field", "amount", "operator", "EQ", "values", Arrays.asList((Object) null))));
         assertThat(rows(preview(screen, dataset, q)).size()).isEqualTo(2);
     }
 
@@ -325,7 +326,7 @@ class ScreenQueryApiTest {
                 deniedDept,
                 1,
                 List.of("screen:view"),
-                new SubjectAttributes(java.util.Set.of("other"), "other", java.util.Set.of(), Map.of(), Map.of()),
+                new SubjectAttributes(Set.of("other"), "other", Set.of(), Map.of(), Map.of()),
                 List.of(DataScope.DEPARTMENT));
         assertThat(call(HttpMethod.GET, path, null).get("httpStatus")).isEqualTo(404);
         UUID tenant = UUID.randomUUID();

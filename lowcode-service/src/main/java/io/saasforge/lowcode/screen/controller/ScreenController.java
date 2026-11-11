@@ -1,7 +1,9 @@
 package io.saasforge.lowcode.screen.controller;
 
 import io.saasforge.lowcode.screen.entity.Screen;
+import io.saasforge.lowcode.screen.model.BindingDataset;
 import io.saasforge.lowcode.screen.model.ScreenDraft;
+import io.saasforge.lowcode.screen.model.WidgetData;
 import io.saasforge.lowcode.screen.service.ScreenQueryService;
 import io.saasforge.lowcode.screen.service.ScreenService;
 import io.saasforge.sdk.audit.AuditLog;
@@ -110,22 +112,21 @@ class ScreenController {
     @Operation(summary = "列出编辑器可绑定的数据集与当前字段，不返回查询或连接信息")
     @GetMapping("/{id}/draft/datasets")
     @RequiresPermission("screen:edit")
-    ApiResponse<List<ScreenQueryService.BindingDataset>> datasets(@PathVariable UUID id, PageQuery page) {
+    ApiResponse<List<BindingDataset>> datasets(@PathVariable UUID id, PageQuery page) {
         return ApiResponse.page(queries.catalog(id, page), page.toPageMeta(queries.datasetCount()));
     }
 
     @Operation(summary = "按已发布大屏的组件配置取数")
     @GetMapping("/{id}/published/widgets/{widgetId}/query")
     @RequiresPermission("screen:view")
-    ApiResponse<ScreenQueryService.WidgetData> query(@PathVariable UUID id, @PathVariable String widgetId) {
+    ApiResponse<WidgetData> query(@PathVariable UUID id, @PathVariable String widgetId) {
         return ApiResponse.ok(queries.published(id, widgetId));
     }
 
     @Operation(summary = "预览编辑中的组件，仅允许当前可编辑大屏")
     @PostMapping("/{id}/draft/query")
     @RequiresPermission("screen:edit")
-    ApiResponse<ScreenQueryService.WidgetData> previewQuery(
-            @PathVariable UUID id, @Valid @RequestBody ScreenDraft.Widget widget) {
+    ApiResponse<WidgetData> previewQuery(@PathVariable UUID id, @Valid @RequestBody ScreenDraft.Widget widget) {
         return ApiResponse.ok(queries.preview(id, widget));
     }
 

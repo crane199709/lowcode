@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,7 +117,7 @@ class ClickHouseDataSourceTest {
                 .extracting(f -> f.get("type"))
                 .containsExactly("NUMBER", "STRING", "DATE", "BOOLEAN", "NUMBER");
         assertThat((List<?>) data.get("rows"))
-                .isEqualTo(java.util.Arrays.asList(java.util.Arrays.asList(12.5, "east", "2026-11-11", true, null)));
+                .isEqualTo(Arrays.asList(Arrays.asList(12.5, "east", "2026-11-11", true, null)));
         var saved = exchange(
                 HttpMethod.POST, "/datasets", Map.of("name", "ClickHouse 日期销售", "dataSourceId", source, "sql", sql));
         assertThat(saved.get("httpStatus")).isEqualTo(201);

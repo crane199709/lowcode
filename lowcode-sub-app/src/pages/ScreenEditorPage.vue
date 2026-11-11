@@ -23,7 +23,14 @@ import ScreenImage from './ScreenImage.vue'
 import ScreenWidgetContent from './ScreenWidgetContent.vue'
 import ScreenChartProperties from './ScreenChartProperties.vue'
 import { chartNames, emptyChart, type ChartConfig, type QueryWidgetType } from './widget-query'
-import { cloneDraft, emptyDraft, resolutions, type ScreenDraft, type ScreenWidget } from './screen'
+import {
+  cloneDraft,
+  emptyDraft,
+  resolutions,
+  widgetStyle,
+  type ScreenDraft,
+  type ScreenWidget,
+} from './screen'
 
 const route = useRoute()
 const router = useRouter()
@@ -289,24 +296,6 @@ function finish() {
   if (!activeGesture) return
   activeGesture = null
   commit()
-}
-function widgetStyle(widget: ScreenWidget) {
-  return {
-    left: `${widget.x}px`,
-    top: `${widget.y}px`,
-    width: `${widget.width}px`,
-    height: `${widget.height}px`,
-    zIndex: widget.zIndex,
-    ...(widget.type === 'TEXT'
-      ? {
-          color: widget.config.color,
-          backgroundColor: widget.config.backgroundColor,
-          fontSize: `${widget.config.fontSize}px`,
-          fontWeight: widget.config.fontWeight,
-          textAlign: widget.config.textAlign,
-        }
-      : {}),
-  }
 }
 async function load() {
   error.value = null

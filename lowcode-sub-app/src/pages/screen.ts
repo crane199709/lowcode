@@ -58,3 +58,22 @@ export interface PublishedScreen {
   definition: ScreenDraft
   publishedAt: string
 }
+
+export function widgetStyle(widget: ScreenWidget) {
+  return {
+    left: `${widget.x}px`,
+    top: `${widget.y}px`,
+    width: `${widget.width}px`,
+    height: `${widget.height}px`,
+    zIndex: widget.zIndex,
+    ...(widget.type === 'TEXT'
+      ? {
+          color: widget.config.color,
+          backgroundColor: widget.config.backgroundColor,
+          fontSize: `${widget.config.fontSize}px`,
+          fontWeight: widget.config.fontWeight,
+          textAlign: widget.config.textAlign,
+        }
+      : {}),
+  }
+}

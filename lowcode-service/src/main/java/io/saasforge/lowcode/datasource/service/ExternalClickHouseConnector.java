@@ -19,6 +19,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.net.URIBuilder;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -108,7 +110,7 @@ class ExternalClickHouseConnector {
             DatasetQueryService.Query query,
             List<FieldResponse> fields) {
         var prepared = SqlAggregation.build(DataSourceType.CLICKHOUSE, sql, query, fields);
-        Map<String, String> parameters = new java.util.HashMap<>();
+        Map<String, String> parameters = new HashMap<>();
         for (int i = 0; i < prepared.values().size(); i++) {
             parameters.put("param_p" + i, prepared.values().get(i).toString());
         }
@@ -288,7 +290,7 @@ class ExternalClickHouseConnector {
                             throw failure(dataset);
                         }
                         return result;
-                    } catch (tools.jackson.core.JacksonException e) {
+                    } catch (JacksonException e) {
                         throw failure(dataset);
                     }
                 }

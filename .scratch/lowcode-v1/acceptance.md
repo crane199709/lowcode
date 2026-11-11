@@ -58,3 +58,25 @@ TDD 红灯来自真实公开接口：缺少初始化器时 IAM succeeded、lowco
 - [查看者 Playback 1440](evidence/17/viewer-published-playback.png)
 - [查看者 Playback 1024](evidence/17/viewer-laptop-playback.png)
 - [本人范围成员空列表](evidence/17/scope-outside-empty.png)
+
+## 最终审查修复后复验（2026-11-11）
+
+本节是审查 HEAD `5197b77100ea8d828dd5d82187b39d10c5edb615` 之后、`codex/lowcode-v1-review-fixes` 当前源码的独立复验，前文票据 17 的 nxe1thcd 等记录仍是历史验收。两轴原报告、逐项修复及原 reviewer 定向复核见 [review.md](review.md)。
+
+- 修复 Dataset UUID 文本大小写绕过引用保护：新增公开 HTTP 测试分别保存大写 UUID 草稿，以及发布后清空草稿的独立快照引用。两场景均先复现 references 为空、DELETE 200 / ok，再通过 UUID 值比较转绿，断言 references 精确包含 Screen 且 DELETE 为 409 / dataset.referenced。红绿日志 `/private/tmp/lowcode-v1-review-{red,green}.log`。
+- 四个 screen HTTP 投影原样移至 model，清理审查列出的 FQCN，编辑器 / 播放共用原样式映射。最终后端 `./mvnw -o spotless:apply verify -DforkCount=1`：**183 tests，0 failures / errors / skips，BUILD SUCCESS**，含架构、表注释和格式检查；日志 `/private/tmp/lowcode-v1-review-verify.log`。未改 SQL 方言行为，未重跑 Oracle slow profile。
+- 以本工作树自己的依赖和 lockfile 执行 `pnpm build`、`pnpm format:check`，完整 `pnpm test:visual`：**130 passed（3.4m）**，既有 PNG 全部正常比对，无截图、lockfile 或 snapshot tarball 变更。日志 `/private/tmp/lowcode-v1-review-{build,format,visual}.log`；仅保留 ECharts 既有大 chunk 提示。
+- 当前 build 产物的真实链路：`./deploy/e2e/run.sh --skip-build --platform-root /Users/liuhuan/workspace/coding/saas-forge`，全新独立 project **lowcode-platform-3t7ih3dc**，空卷、独立账号和本轮密钥，**1 passed（24.1s）**。入口日志 `/private/tmp/lowcode-v1-review-platform.log`，私有运行目录 `/private/tmp/lowcode-platform-3t7ih3dc`。没有重新发布平台或读取既有 `.env.local`。
+
+浏览器验证路径：Operator 登记应用、开放套餐并创建租户 → 普通设计者在 Shell 登记 PostgreSQL Data Source、定义 Dataset、拖放配置 Screen 图表、上传背景图片并发布 → viewer Playback → 无权限成员 403、self 范围成员空列表 / 单对象与快照 404。真实 MQ 开通、Nacos lb 路由、S3 上传 / 续签、引用保护和 IAM 审计消费均按原严格断言通过，聚合仍为华东 200 / 华南 60。
+
+| QA 项目 | 本轮结果 |
+| --- | --- |
+| 环境 / 页面身份 | Browser plugin not available；现有 Playwright Chromium，Console 15173 / Shell 15174 / remote 15176，中文、Asia/Shanghai，1440×1000 和 1024×768；身份与标题断言通过 |
+| 非空 / 框架覆盖层 | 实际业务内容与 remote 加载正常，无框架错误覆盖层 |
+| console / pageerror | 沿用精确 `/demo/context` 403 基线，其余相关错误均严格检查通过 |
+| 交互证据 | 登录、套餐开放、真实开通、设计保存、发布、播放、图片续签与权限 / scope 可见状态断言通过 |
+| 截图走查 | 五张本轮 PNG 已逐张 view；两档 Playback 仅一个 Shell 页头，图表 / 图片正常；空列表截图处于 loading mask 淡出瞬态，空态与 0 条断言均通过 |
+| 清理 | 自有 project 容器 / 卷、owned Java 进程和 13 个监听端口均无残留；复核文件 `review-cleanup.json` 留在本轮私有目录 |
+
+本轮四张正常截图与原证据语义相同；范围外空态图保留原 17 的清晰 PNG，本次五张图不覆盖历史证据。`ScreenList` 本轮未修改，完整 130 项基线与实际 HTTP / UI scope 断言均通过，瞬态截图不作为新的清晰空态交付图。原始凭据、邀请链接和登录表单日志仅留私有临时目录，未加入仓库。平台反馈 01、07、08 保留既有本地状态，未修改或提交平台源码。
