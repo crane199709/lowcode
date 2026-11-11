@@ -16,6 +16,8 @@ import {
 import { useAccessControl, useTenantClient } from '@crane199709/sdk'
 import { ErrorAlert, PageHeader, PageToolbar, type ErrorTip } from '@crane199709/ui'
 import { errorTip, jsonBody } from './data-source'
+import ScreenImage from './ScreenImage.vue'
+import ScreenWidgetContent from './ScreenWidgetContent.vue'
 import { cloneDraft, emptyDraft, resolutions, type ScreenDraft, type ScreenWidget } from './screen'
 
 const route = useRoute()
@@ -28,6 +30,82 @@ const loaded = ref(false)
 const saving = ref(false)
 const error = ref<ErrorTip | null>(null)
 const saved = ref(false)
+const uploading = ref(false)
+const imageInput = ref<HTMLInputElement>()
+const backgroundInput = ref<HTMLInputElement>()
+const replacementInput = ref<HTMLInputElement>()
+const imageBase = computed(() => `/lowcode/screens/${route.params.id}/draft/images`)
+async function uploadImage(event: Event, target: 'widget' | 'background' | 'replace') {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (
+    !/\.(png|jpe?g|webp|gif)$/i.test(file.name) ||
+    file.size > 10 * 1024 * 1024 ||
+    file.size === 0
+  ) {
+    error.value = { message: '请选择不超过 10 MiB 的 PNG、JPEG、WebP 或 GIF 图片' }
+    return
+  }
+  const replaceId = selectedId.value
+  uploading.value = true
+  error.value = null
+  try {
+    const ticket = await client.api<{
+      objectId: string
+      url: string
+      headers: Record<string, string>
+    }>(
+      `/lowcode/screens/${route.params.id}/images/uploads`,
+      jsonBody('POST', {
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream',
+        size: file.size,
+      }),
+    )
+    const response = await fetch(ticket.url, {
+      method: 'PUT',
+      headers: ticket.headers,
+      body: file,
+      credentials: 'omit',
+    })
+    if (!response.ok) throw new Error('upload failed')
+    await client.api(`/lowcode/screens/${route.params.id}/images/${ticket.objectId}/complete`, {
+      method: 'POST',
+    })
+    if (target === 'background') {
+      draft.value.backgroundImageObjectId = ticket.objectId
+      draft.value.backgroundImageFill ??= 'cover'
+    } else if (target === 'replace') {
+      const widget = draft.value.widgets.find((item) => item.id === replaceId)
+      if (widget?.type === 'IMAGE') widget.config.objectId = ticket.objectId
+    } else if (draft.value.widgets.length < 200) {
+      const widget: ScreenWidget = {
+        id: crypto.randomUUID(),
+        type: 'IMAGE',
+        x: 80,
+        y: 80,
+        width: 640,
+        height: 360,
+        zIndex: draft.value.widgets.length,
+        config: { objectId: ticket.objectId, fill: 'contain' },
+      }
+      draft.value.widgets.push(widget)
+      selectedId.value = widget.id
+    }
+    commit()
+  } catch (cause) {
+    error.value = errorTip(cause, '图片上传失败，请重试')
+  } finally {
+    uploading.value = false
+  }
+}
+function removeBackground() {
+  delete draft.value.backgroundImageObjectId
+  delete draft.value.backgroundImageFill
+  commit()
+}
 const selectedId = ref<string | null>(null)
 const selected = computed(() =>
   draft.value.widgets.find((widget) => widget.id === selectedId.value),
@@ -180,17 +258,22 @@ function widgetStyle(widget: ScreenWidget) {
     width: `${widget.width}px`,
     height: `${widget.height}px`,
     zIndex: widget.zIndex,
-    color: widget.config.color,
-    backgroundColor: widget.config.backgroundColor,
-    fontSize: `${widget.config.fontSize}px`,
-    fontWeight: widget.config.fontWeight,
-    textAlign: widget.config.textAlign,
+    ...(widget.type === 'TEXT'
+      ? {
+          color: widget.config.color,
+          backgroundColor: widget.config.backgroundColor,
+          fontSize: `${widget.config.fontSize}px`,
+          fontWeight: widget.config.fontWeight,
+          textAlign: widget.config.textAlign,
+        }
+      : {}),
   }
 }
 async function load() {
   error.value = null
   try {
     draft.value = await client.api<ScreenDraft>(`/lowcode/screens/${route.params.id}/draft`)
+    if (draft.value.backgroundImageObjectId) draft.value.backgroundImageFill ??= 'cover'
     history.value = [cloneDraft(draft.value)]
     cursor.value = 0
     preset.value = resolutions.includes(`${draft.value.designWidth}×${draft.value.designHeight}`)
@@ -240,6 +323,35 @@ onBeforeUnmount(() => observer?.disconnect())
       <template v-if="loaded">
         <PageToolbar>
           <div class="editor-actions">
+            <input
+              ref="imageInput"
+              class="file-input"
+              type="file"
+              aria-label="添加图片"
+              accept=".png,.jpg,.jpeg,.webp,.gif"
+              @change="uploadImage($event, 'widget')"
+            />
+            <input
+              ref="backgroundInput"
+              class="file-input"
+              type="file"
+              aria-label="背景图片"
+              accept=".png,.jpg,.jpeg,.webp,.gif"
+              @change="uploadImage($event, 'background')"
+            />
+            <input
+              ref="replacementInput"
+              class="file-input"
+              type="file"
+              aria-label="替换图片"
+              accept=".png,.jpg,.jpeg,.webp,.gif"
+              @change="uploadImage($event, 'replace')"
+            />
+            <el-button
+              :disabled="uploading || draft.widgets.length >= 200"
+              @click="imageInput?.click()"
+              >添加图片</el-button
+            >
             <el-button :disabled="draft.widgets.length >= 200" @click="addText"
               >添加文本卡</el-button
             >
@@ -251,7 +363,7 @@ onBeforeUnmount(() => observer?.disconnect())
           </div>
           <template #actions
             ><el-tag v-if="saved" type="success">草稿已保存</el-tag
-            ><el-button type="primary" :loading="saving" @click="save"
+            ><el-button type="primary" :loading="saving" :disabled="uploading" @click="save"
               >保存草稿</el-button
             ></template
           >
@@ -282,6 +394,15 @@ onBeforeUnmount(() => observer?.disconnect())
                   }"
                   @pointerdown.self="selectedId = null"
                 >
+                  <ScreenImage
+                    v-if="draft.backgroundImageObjectId"
+                    class="background-image"
+                    :object-id="draft.backgroundImageObjectId"
+                    :fill="draft.backgroundImageFill"
+                    :image-base="imageBase"
+                    alt="大屏背景图"
+                    @pointerdown="selectedId = null"
+                  />
                   <div
                     v-for="widget in draft.widgets"
                     :key="widget.id"
@@ -295,7 +416,7 @@ onBeforeUnmount(() => observer?.disconnect())
                     @pointercancel="finish"
                     @lostpointercapture="finish"
                   >
-                    {{ widget.config.text }}
+                    <ScreenWidgetContent :widget="widget" :image-base="imageBase" />
                     <span
                       v-if="selectedId === widget.id"
                       class="resize-handle"
@@ -347,17 +468,37 @@ onBeforeUnmount(() => observer?.disconnect())
                   type="color"
                   @change="commit"
               /></el-form-item>
+              <el-form-item label="背景图">
+                <el-button :loading="uploading" @click="backgroundInput?.click()">{{
+                  draft.backgroundImageObjectId ? '替换背景图' : '上传背景图'
+                }}</el-button>
+                <el-button v-if="draft.backgroundImageObjectId" @click="removeBackground"
+                  >移除背景图</el-button
+                >
+              </el-form-item>
+              <el-form-item v-if="draft.backgroundImageObjectId" label="背景填充">
+                <el-select
+                  v-model="draft.backgroundImageFill"
+                  aria-label="背景填充"
+                  @change="commit"
+                  ><el-option label="完整显示" value="contain" /><el-option
+                    label="覆盖填充"
+                    value="cover" /><el-option label="拉伸" value="fill"
+                /></el-select>
+              </el-form-item>
               <template v-if="selected">
-                <h3>文本卡</h3>
-                <el-form-item label="文字"
-                  ><el-input
-                    v-model="selected.config.text"
-                    aria-label="文字内容"
-                    type="textarea"
-                    :rows="2"
-                    maxlength="20000"
-                    @change="commit"
-                /></el-form-item>
+                <h3>{{ selected.type === 'TEXT' ? '文本卡' : '图片' }}</h3>
+                <template v-if="selected.type === 'TEXT'">
+                  <el-form-item label="文字"
+                    ><el-input
+                      v-model="selected.config.text"
+                      aria-label="文字内容"
+                      type="textarea"
+                      :rows="2"
+                      maxlength="20000"
+                      @change="commit"
+                  /></el-form-item>
+                </template>
                 <div class="property-pair">
                   <el-form-item label="X"
                     ><el-input-number
@@ -400,48 +541,66 @@ onBeforeUnmount(() => observer?.disconnect())
                       @change="commit"
                   /></el-form-item>
                 </div>
-                <el-form-item label="字号"
-                  ><el-input-number
-                    v-model="selected.config.fontSize"
-                    aria-label="字号"
-                    :min="8"
-                    :max="256"
-                    :precision="0"
-                    @change="commit"
-                /></el-form-item>
-                <div class="property-pair">
-                  <el-form-item label="文字颜色"
-                    ><input
-                      v-model="selected.config.color"
-                      aria-label="文字颜色"
-                      type="color"
-                      @change="commit" /></el-form-item
-                  ><el-form-item label="填充色"
-                    ><input
-                      v-model="selected.config.backgroundColor"
-                      aria-label="组件填充色"
-                      type="color"
+                <template v-if="selected.type === 'TEXT'">
+                  <el-form-item label="字号"
+                    ><el-input-number
+                      v-model="selected.config.fontSize"
+                      aria-label="字号"
+                      :min="8"
+                      :max="256"
+                      :precision="0"
                       @change="commit"
                   /></el-form-item>
-                </div>
-                <el-form-item label="字重"
-                  ><el-select
-                    v-model="selected.config.fontWeight"
-                    aria-label="字重"
-                    @change="commit"
-                    ><el-option label="常规" value="normal" /><el-option
-                      label="加粗"
-                      value="bold" /></el-select
-                ></el-form-item>
-                <el-form-item label="对齐"
-                  ><el-select
-                    v-model="selected.config.textAlign"
-                    aria-label="文字对齐"
-                    @change="commit"
-                    ><el-option label="左对齐" value="left" /><el-option
-                      label="居中"
-                      value="center" /><el-option label="右对齐" value="right" /></el-select
-                ></el-form-item>
+                  <div class="property-pair">
+                    <el-form-item label="文字颜色"
+                      ><input
+                        v-model="selected.config.color"
+                        aria-label="文字颜色"
+                        type="color"
+                        @change="commit" /></el-form-item
+                    ><el-form-item label="填充色"
+                      ><input
+                        v-model="selected.config.backgroundColor"
+                        aria-label="组件填充色"
+                        type="color"
+                        @change="commit"
+                    /></el-form-item>
+                  </div>
+                  <el-form-item label="字重"
+                    ><el-select
+                      v-model="selected.config.fontWeight"
+                      aria-label="字重"
+                      @change="commit"
+                      ><el-option label="常规" value="normal" /><el-option
+                        label="加粗"
+                        value="bold" /></el-select
+                  ></el-form-item>
+                  <el-form-item label="对齐"
+                    ><el-select
+                      v-model="selected.config.textAlign"
+                      aria-label="文字对齐"
+                      @change="commit"
+                      ><el-option label="左对齐" value="left" /><el-option
+                        label="居中"
+                        value="center" /><el-option label="右对齐" value="right" /></el-select
+                  ></el-form-item>
+                </template>
+                <template v-else>
+                  <el-form-item label="图片"
+                    ><el-button :loading="uploading" @click="replacementInput?.click()"
+                      >替换图片</el-button
+                    ></el-form-item
+                  >
+                  <el-form-item label="图片填充"
+                    ><el-select
+                      v-model="selected.config.fill"
+                      aria-label="图片填充"
+                      @change="commit"
+                      ><el-option label="完整显示" value="contain" /><el-option
+                        label="覆盖填充"
+                        value="cover" /><el-option label="拉伸" value="fill" /></el-select
+                  ></el-form-item>
+                </template>
                 <div class="widget-actions">
                   <el-button @click="layer(1)">上移一层</el-button
                   ><el-button @click="layer(-1)">下移一层</el-button
@@ -457,6 +616,13 @@ onBeforeUnmount(() => observer?.disconnect())
   </section>
 </template>
 <style scoped>
+.file-input {
+  display: none;
+}
+.background-image {
+  position: absolute;
+  inset: 0;
+}
 .editor-actions {
   display: flex;
   align-items: center;

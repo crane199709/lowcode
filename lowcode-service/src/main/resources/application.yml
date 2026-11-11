@@ -31,6 +31,12 @@ spring:
       host: ${FORGE_REDIS_HOST}
       port: ${FORGE_REDIS_PORT}
 forge:
+  storage:
+    # S3 兼容地址须可被浏览器访问；bucket 需预建并允许前端跨域 PUT/GET（接入指南对象存储章节）
+    endpoint: ${FORGE_STORAGE_ENDPOINT}
+    bucket: ${FORGE_STORAGE_BUCKET}
+    access-key: ${FORGE_STORAGE_ACCESS_KEY}
+    secret-key: ${FORGE_STORAGE_SECRET_KEY}
   ops:
     token: ${FORGE_OPS_TOKEN}
   security:

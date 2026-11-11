@@ -5,7 +5,8 @@ import { ElButton, ElOption, ElSelect } from 'element-plus'
 import { useAccessControl, useTenantClient } from '@crane199709/sdk'
 import { ErrorAlert, PageHeader, PageToolbar, type ErrorTip } from '@crane199709/ui'
 import { errorTip } from './data-source'
-import type { PublishedScreen, ScreenWidget } from './screen'
+import type { PublishedScreen } from './screen'
+import ScreenCanvas from './ScreenCanvas.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,20 +49,6 @@ const extentStyle = computed(() =>
       }
     : {},
 )
-function widgetStyle(widget: ScreenWidget) {
-  return {
-    left: `${widget.x}px`,
-    top: `${widget.y}px`,
-    width: `${widget.width}px`,
-    height: `${widget.height}px`,
-    zIndex: widget.zIndex,
-    color: widget.config.color,
-    backgroundColor: widget.config.backgroundColor,
-    fontSize: `${widget.config.fontSize}px`,
-    fontWeight: widget.config.fontWeight,
-    textAlign: widget.config.textAlign,
-  }
-}
 function measure() {
   if (viewport.value)
     size.value = { width: viewport.value.clientWidth, height: viewport.value.clientHeight }
@@ -131,16 +118,13 @@ onBeforeUnmount(() => {
         aria-label="播放画布"
       >
         <div class="extent" :style="extentStyle">
-          <div class="stage" data-testid="playback-stage" :style="stageStyle">
-            <div
-              v-for="widget in screen.definition.widgets"
-              :key="widget.id"
-              class="widget"
-              :style="widgetStyle(widget)"
-            >
-              {{ widget.config.text }}
-            </div>
-          </div>
+          <ScreenCanvas
+            class="stage"
+            data-testid="playback-stage"
+            :style="stageStyle"
+            :draft="screen.definition"
+            :image-base="`/lowcode/screens/${screen.id}/images`"
+          />
         </div>
       </div>
     </template>
@@ -184,11 +168,5 @@ onBeforeUnmount(() => {
   position: absolute;
   transform-origin: top left;
   overflow: hidden;
-}
-.widget {
-  position: absolute;
-  overflow: hidden;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 </style>

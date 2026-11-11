@@ -1,16 +1,22 @@
 package io.saasforge.lowcode;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.JdbcDatabaseContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.mssqlserver.MSSQLServerContainer;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.oracle.OracleContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.MountableFile;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 
 /**
  * 同一测试 JVM 内共享的 PostgreSQL 与 Redis 容器。
@@ -235,6 +241,35 @@ final class SharedContainers {
 
         Integer getMappedPort(int port) {
             return container.getMappedPort(port);
+        }
+    }
+
+    /** 图片 HTTP 测试使用真实 S3 兼容服务，其他测试不启动它。 */
+    static String storageEndpoint() {
+        return StorageHolder.ENDPOINT;
+    }
+
+    private static final class StorageHolder {
+        static final GenericContainer<?> CONTAINER = new GenericContainer<>("pgsty/silo:RELEASE.2026-10-18T00-00-00Z")
+                .withEnv("MINIO_ROOT_USER", "storage-test")
+                .withEnv("MINIO_ROOT_PASSWORD", "storage-test-secret")
+                .withCommand("server", "/data")
+                .withExposedPorts(9000)
+                .waitingFor(Wait.forHttp("/minio/health/live").forPort(9000));
+        static final String ENDPOINT;
+
+        static {
+            CONTAINER.start();
+            ENDPOINT = "http://" + CONTAINER.getHost() + ":" + CONTAINER.getMappedPort(9000);
+            try (S3Client client = S3Client.builder()
+                    .endpointOverride(URI.create(ENDPOINT))
+                    .region(Region.US_EAST_1)
+                    .forcePathStyle(true)
+                    .credentialsProvider(StaticCredentialsProvider.create(
+                            AwsBasicCredentials.create("storage-test", "storage-test-secret")))
+                    .build()) {
+                client.createBucket(request -> request.bucket("lowcode-test"));
+            }
         }
     }
 

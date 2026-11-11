@@ -1,6 +1,7 @@
 package io.saasforge.lowcode.screen.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
@@ -11,9 +12,12 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import tools.jackson.databind.JsonNode;
 
 /** Design Resolution 与 Widget 坐标均为设计像素；修改分辨率不换算已有坐标。 */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record ScreenDraft(
         @Min(640) @Max(7680) int designWidth,
         @Min(640) @Max(7680) int designHeight,
@@ -21,9 +25,11 @@ public record ScreenDraft(
         @NotNull @Pattern(regexp = "#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?")
         String backgroundColor,
 
+        UUID backgroundImageObjectId,
+        @Pattern(regexp = "contain|cover|fill") String backgroundImageFill,
         @NotNull @Size(max = 200) List<@NotNull @Valid Widget> widgets) {
     public static ScreenDraft empty() {
-        return new ScreenDraft(1920, 1080, "#101827", List.of());
+        return new ScreenDraft(1920, 1080, "#101827", null, null, List.of());
     }
 
     @AssertTrue(message = "组件 ID 不得重复")
@@ -41,9 +47,23 @@ public record ScreenDraft(
         return true;
     }
 
+    @JsonIgnore
+    public Set<UUID> imageObjectIds() {
+        var ids = new HashSet<UUID>();
+        if (backgroundImageObjectId != null) {
+            ids.add(backgroundImageObjectId);
+        }
+        for (Widget widget : widgets) {
+            if ("IMAGE".equals(widget.type())) {
+                ids.add(UUID.fromString(widget.config().path("objectId").asString()));
+            }
+        }
+        return ids;
+    }
+
     public record Widget(
             @NotBlank @Size(max = 80) String id,
-            @NotNull @Pattern(regexp = "TEXT") String type,
+            @NotNull @Pattern(regexp = "TEXT|IMAGE") String type,
             @Min(0) @Max(7680) int x,
             @Min(0) @Max(7680) int y,
             @Min(1) @Max(7680) int width,
@@ -51,9 +71,17 @@ public record ScreenDraft(
             @Min(0) @Max(10000) int zIndex,
             @NotNull JsonNode config) {
         // config 保留按 Widget 类型演进的接口，但已支持类型必须在保存前验证，不能把坏配置留给渲染器。
-        @AssertTrue(message = "文本卡配置无效")
+        @AssertTrue(message = "组件配置无效")
         @JsonIgnore
         public boolean isValidConfig() {
+            if ("IMAGE".equals(type) && config != null) {
+                return config.isObject()
+                        && config.path("objectId")
+                                .asString("")
+                                .matches("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
+                        && List.of("contain", "cover", "fill")
+                                .contains(config.path("fill").asString(""));
+            }
             if (!"TEXT".equals(type) || config == null) {
                 return true;
             }

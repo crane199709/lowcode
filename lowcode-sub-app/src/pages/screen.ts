@@ -6,20 +6,27 @@ export interface TextConfig {
   fontWeight: 'normal' | 'bold'
   textAlign: 'left' | 'center' | 'right'
 }
-export interface ScreenWidget {
+export type ImageFill = 'contain' | 'cover' | 'fill'
+export interface ImageConfig {
+  objectId: string
+  fill: ImageFill
+}
+interface WidgetLayout {
   id: string
-  type: 'TEXT'
   x: number
   y: number
   width: number
   height: number
   zIndex: number
-  config: TextConfig
 }
+export type ScreenWidget = WidgetLayout &
+  ({ type: 'TEXT'; config: TextConfig } | { type: 'IMAGE'; config: ImageConfig })
 export interface ScreenDraft {
   designWidth: number
   designHeight: number
   backgroundColor: string
+  backgroundImageObjectId?: string | null
+  backgroundImageFill?: ImageFill | null
   widgets: ScreenWidget[]
 }
 export interface Screen {

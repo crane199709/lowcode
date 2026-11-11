@@ -8,6 +8,7 @@ import io.saasforge.sdk.abac.data.DataPermission;
 import io.saasforge.sdk.core.CurrentActorProvider;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.security.MembershipGrantStore;
+import io.saasforge.sdk.storage.ObjectStorage;
 import io.saasforge.sdk.web.PageQuery;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -33,18 +34,21 @@ public class ScreenService {
     private final JsonMapper json;
     private final MembershipGrantStore grants;
     private final CurrentActorProvider actors;
+    private final ObjectStorage storage;
 
     public ScreenService(
             ScreenMapper screenMapper,
             DataPermission dataPermission,
             JsonMapper json,
             MembershipGrantStore grants,
-            CurrentActorProvider actors) {
+            CurrentActorProvider actors,
+            ObjectStorage storage) {
         this.screenMapper = screenMapper;
         this.dataPermission = dataPermission;
         this.json = json;
         this.grants = grants;
         this.actors = actors;
+        this.storage = storage;
     }
 
     /**
@@ -64,6 +68,7 @@ public class ScreenService {
             screen.setDepartmentPath((String) subject.get("subject.primaryDepartmentPath"));
         });
         dataPermission.check(DATA_RESOURCE, attributes(screen));
+        validateImages(draft);
         screenMapper.insert(screen);
         // 创建时间由数据库生成，重新读取才能返回与之后查询一致的值
         return get(screen.getId());
@@ -110,6 +115,8 @@ public class ScreenService {
     }
 
     public Screen update(UUID id, String name, ScreenDraft draft) {
+        get(id);
+        validateImages(draft);
         var screen = new Screen();
         screen.setId(id);
         screen.setName(name);
@@ -127,6 +134,8 @@ public class ScreenService {
     }
 
     public ScreenDraft saveDraft(UUID id, ScreenDraft draft) {
+        get(id);
+        validateImages(draft);
         var screen = new Screen();
         screen.setId(id);
         screen.setDraft(json.writeValueAsString(draft));
@@ -174,6 +183,15 @@ public class ScreenService {
     public void delete(UUID id) {
         if (screenMapper.deleteById(id) == 0) {
             throw notFound(id);
+        }
+    }
+
+    private void validateImages(ScreenDraft draft) {
+        if (draft != null) {
+            for (UUID objectId : draft.imageObjectIds()) {
+                var image = storage.get(ScreenImageService.PURPOSE, objectId);
+                ScreenImageService.validateMediaType(image.filename(), image.contentType());
+            }
         }
     }
 
