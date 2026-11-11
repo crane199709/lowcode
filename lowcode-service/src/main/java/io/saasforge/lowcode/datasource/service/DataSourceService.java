@@ -137,7 +137,9 @@ public class DataSourceService {
     }
 
     private ConnectionSettings metadataSettings(DataSource saved, DataSourceType type) {
-        if (type == DataSourceType.API) throw new ForgeException(DataSourceErrorCode.METADATA_NOT_SUPPORTED);
+        if (type == DataSourceType.API) {
+            throw new ForgeException(DataSourceErrorCode.METADATA_NOT_SUPPORTED);
+        }
         var settings = new ConnectionSettings(
                 saved.getHost(),
                 saved.getPort(),
@@ -151,7 +153,9 @@ public class DataSourceService {
 
     private InetAddress metadataAddress(ConnectionSettings settings) {
         List<InetAddress> addresses = networkGuard.resolve(settings.host());
-        if (addresses.isEmpty()) throw unreachable();
+        if (addresses.isEmpty()) {
+            throw unreachable();
+        }
         return addresses.get(0);
     }
 

@@ -14,6 +14,7 @@
 - 自定义配置用 `@ConfigurationProperties` 的 `record` 绑定，不用 `@Value`；随环境变化的地址与密钥不在代码中设默认值，漏配须启动失败。
 - Controller 公开方法显式返回 `ApiResponse<T>` 信封，请求体用 `@Valid` 校验；业务错误抛 `ForgeException`，错误码取自功能包 `service` 层 `ErrorCode` 枚举，格式 `<领域>.<原因>`；HTTP 状态码如实返回，不用 204。
 - 租户业务表带标准列 `created_at`/`updated_at`/`created_by`/`updated_by`/`deleted`，实体继承 `AuditableEntity`；删除一律为逻辑删除，唯一性只用 `WHERE NOT deleted` 的部分唯一索引。
+- Java 的 `if`、`else`、`for`、`while`、`do-while` 控制体一律使用大括号，即使只有一条语句；生产代码和测试代码都适用。
 - 注释写「为什么」，Mapper 方法必须有文档注释。
 
 ## 命令

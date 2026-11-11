@@ -59,8 +59,9 @@ class ExternalJdbcConnector {
             DataSourceType type, InetAddress address, ConnectionSettings settings, TableResponse table) {
         return withConnection(type, address, settings, connection -> {
             // 列元数据未必自行过滤权限；先核验表标识来自同一账号可见的表集合。
-            if (!readTables(connection, type).contains(table))
+            if (!readTables(connection, type).contains(table)) {
                 throw new ForgeException(DataSourceErrorCode.TABLE_NOT_FOUND);
+            }
             var metadata = connection.getMetaData();
             String escape = metadata.getSearchStringEscape();
             List<ColumnResponse> columns = new ArrayList<>();
@@ -71,8 +72,9 @@ class ExternalJdbcConnector {
                             : pattern(table.schema(), escape, type),
                     pattern(table.name(), escape, type),
                     "%")) {
-                while (rows.next())
+                while (rows.next()) {
                     columns.add(new ColumnResponse(rows.getString("COLUMN_NAME"), rows.getString("TYPE_NAME")));
+                }
             }
             return List.copyOf(columns);
         });
@@ -91,7 +93,9 @@ class ExternalJdbcConnector {
         // PostgreSQL 的表权限与 schema USAGE 独立；驱动的 getTables 只检查前者。
         if (type == DataSourceType.POSTGRESQL) {
             try (var rows = metadata.getSchemas()) {
-                while (rows.next()) schemas.add(rows.getString("TABLE_SCHEM"));
+                while (rows.next()) {
+                    schemas.add(rows.getString("TABLE_SCHEM"));
+                }
             }
         }
         List<TableResponse> tables = new ArrayList<>();
@@ -100,7 +104,9 @@ class ExternalJdbcConnector {
             while (rows.next()) {
                 String catalog = text(rows.getString("TABLE_CAT"));
                 String schema = text(rows.getString("TABLE_SCHEM"));
-                if (type == DataSourceType.POSTGRESQL && !schemas.contains(schema)) continue;
+                if (type == DataSourceType.POSTGRESQL && !schemas.contains(schema)) {
+                    continue;
+                }
                 tables.add(new TableResponse(
                         catalog, type == DataSourceType.MYSQL ? catalog : schema, rows.getString("TABLE_NAME")));
             }

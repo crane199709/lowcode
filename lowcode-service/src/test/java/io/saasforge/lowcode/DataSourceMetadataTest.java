@@ -235,7 +235,9 @@ class DataSourceMetadataTest {
                 .uri(URI.create("http://localhost:" + port + uri))
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON);
-        if (body != null) request = request.body(body);
+        if (body != null) {
+            request = request.body(body);
+        }
         return request.exchange((req, response) -> response.bodyTo(Map.class));
     }
 }
