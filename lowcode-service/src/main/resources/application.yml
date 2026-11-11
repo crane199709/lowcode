@@ -1,0 +1,49 @@
+server:
+  forward-headers-strategy: framework
+  # 业务服务部署端口：平台运维
+  port: ${FORGE_SERVICE_PORT}
+spring:
+  application:
+    name: lowcode-service
+  config:
+    import: optional:nacos:forge-common.yaml
+  cloud:
+    nacos:
+      # 配置与服务发现地址：平台运维（接入清单第 4 步）
+      server-addr: ${FORGE_NACOS_ADDR}
+  datasource:
+    # JDBC URL、运行账号与密码：数据库准备步骤；URL 包含数据库名
+    url: ${FORGE_DB_URL}
+    username: ${FORGE_DB_USER}
+    password: ${FORGE_DB_PASSWORD}
+  flyway:
+    # 迁移账号、密码与 schema：接入清单数据库步骤；运行账号不得持有表
+    user: ${FORGE_DB_MIGRATOR_USER}
+    password: ${FORGE_DB_MIGRATOR_PASSWORD}
+    schemas: ${FORGE_DB_SCHEMA}
+    default-schema: ${FORGE_DB_SCHEMA}
+    create-schemas: false
+    placeholders:
+      serviceSchema: ${FORGE_DB_SCHEMA}
+  data:
+    redis:
+      # 平台共享 Redis：平台运维提供，权限明细由 IAM 发布
+      host: ${FORGE_REDIS_HOST}
+      port: ${FORGE_REDIS_PORT}
+forge:
+  ops:
+    token: ${FORGE_OPS_TOKEN}
+  security:
+    # Tenant Realm 签发者（网关公开地址）与直连 IAM JWKS 地址：平台运维
+    issuer: ${FORGE_SECURITY_ISSUER}
+    jwk-set-uri: ${FORGE_SECURITY_JWK_SET_URI}
+  mq:
+    # RocketMQ Proxy gRPC 地址：接入清单 Topic 准备步骤
+    endpoints: ${FORGE_ROCKETMQ_ENDPOINTS}
+  manifest:
+    version: 1
+    # IAM 内部地址与本服务专属上报令牌：接入清单 Manifest 步骤
+    iam-uri: ${FORGE_IAM_URI}
+    token: ${FORGE_MANIFEST_TOKEN}
+mybatis-plus:
+  mapper-locations: classpath*:/*/mapper/**/*.xml

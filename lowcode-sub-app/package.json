@@ -1,0 +1,36 @@
+{
+  "name": "@forge/lowcode-sub-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm lint && pnpm lint:style && vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "forge-sub-app-lint",
+    "lint:style": "stylelint \"src/**/*.{vue,css}\"",
+    "test:visual": "playwright test -c playwright.visual.config.ts",
+    "test:visual:update": "playwright test -c playwright.visual.config.ts --update-snapshots"
+  },
+  "dependencies": {
+    "@crane199709/sdk": "0.1.0",
+    "@crane199709/ui": "0.1.0",
+    "element-plus": "2.14.7",
+    "pinia": "4.1.0",
+    "vue": "3.5.44",
+    "vue-i18n": "11.4.16",
+    "vue-router": "5.4.0"
+  },
+  "devDependencies": {
+    "@crane199709/sub-app-kit": "0.1.0",
+    "@module-federation/vite": "1.23.5",
+    "@playwright/test": "1.64.1",
+    "@vitejs/plugin-vue": "6.0.10",
+    "postcss-html": "2.0.0",
+    "stylelint": "18.0.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vue-tsc": "3.3.13"
+  }
+}
