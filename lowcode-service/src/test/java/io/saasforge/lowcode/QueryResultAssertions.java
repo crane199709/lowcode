@@ -25,6 +25,14 @@ final class QueryResultAssertions {
              {"day":"2024-02-29T23:30:00","amount":32}]
             """;
 
+    static void integerAggregates(List<?> rows) {
+        rows(rows, new Object[] {"east", 3, 1.5, 2, 2, 2, 1}, new Object[] {"west", 9, 9, 1, 1, 9, 9});
+    }
+
+    static void integerTopN(List<?> rows) {
+        rows(rows, new Object[] {"west", 9, 9, 1, 1, 9, 9});
+    }
+
     static void sales(List<?> rows) {
         rows(rows, new Object[] {"east", 8, 2, 4, 3, 3, 1}, new Object[] {"west", 4, 4, 1, 1, 4, 4}, new Object[] {
             null, 3, 3, 1, 1, 3, 3
