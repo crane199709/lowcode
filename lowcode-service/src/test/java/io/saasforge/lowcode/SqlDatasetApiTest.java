@@ -65,6 +65,8 @@ class SqlDatasetApiTest {
         String source = create();
         for (String sql : List.of(
                 "SELECT 1 AS amount",
+                "SELECT 1 AS lock",
+                "SELECT 1 AS update",
                 "WITH q AS (SELECT 1 AS amount) SELECT * FROM q",
                 "SELECT '; DELETE' AS text; -- end")) {
             assertThat(preview(source, sql).get("code")).as(sql).isEqualTo("ok");
@@ -73,6 +75,10 @@ class SqlDatasetApiTest {
                 "DELETE FROM anything",
                 "SELECT 1; SELECT 2",
                 "WITH q AS (DELETE FROM anything RETURNING *) SELECT * FROM q",
+                "WITH q AS (UPDATE public.dataset_write_probe SET value = 2 RETURNING value) SELECT * FROM q",
+                "WITH q AS (INSERT INTO public.dataset_write_probe (value) VALUES (1) RETURNING value) SELECT * FROM q",
+                "WITH q AS (DELETE FROM anything RETURNING *) VALUES (1)",
+                "SELECT * FROM (SELECT 1 INTO anything) q",
                 "SELECT 1 INTO anything",
                 "CALL anything()",
                 "not sql",

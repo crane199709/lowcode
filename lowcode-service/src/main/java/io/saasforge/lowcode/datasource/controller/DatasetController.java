@@ -3,7 +3,6 @@ package io.saasforge.lowcode.datasource.controller;
 import io.saasforge.lowcode.datasource.model.DatabaseSourceResponse;
 import io.saasforge.lowcode.datasource.model.DatasetRequest;
 import io.saasforge.lowcode.datasource.model.DatasetResponse;
-import io.saasforge.lowcode.datasource.model.SqlPreviewRequest;
 import io.saasforge.lowcode.datasource.model.SqlPreviewResponse;
 import io.saasforge.lowcode.datasource.service.DataSourceService;
 import io.saasforge.lowcode.datasource.service.DatasetService;
@@ -13,6 +12,9 @@ import io.saasforge.sdk.web.PageQuery;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -89,4 +91,8 @@ class DatasetController {
     public ApiResponse<SqlPreviewResponse> preview(@Valid @RequestBody SqlPreviewRequest request) {
         return ApiResponse.ok(dataSourceService.previewSql(request.dataSourceId(), request.sql()));
     }
+
+    record SqlPreviewRequest(
+            @NotNull UUID dataSourceId,
+            @NotBlank @Size(max = 65536) String sql) {}
 }

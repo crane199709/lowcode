@@ -114,6 +114,24 @@ for (const [label, width, height] of viewports) {
       await expect(page.getByRole('dialog')).toBeVisible()
       await expect(page).toHaveScreenshot(`datasets-create-${label}.png`)
     })
+    test('修改 SQL 后重新推断并保留同名字段配置', async ({ page }) => {
+      await mock(page)
+      await open(page, 'datasets', manage)
+      await page.getByRole('button', { name: '编辑', exact: true }).click()
+      const drawer = page.getByRole('dialog')
+      await drawer.getByLabel('amount 显示名').fill('订单金额')
+      await drawer.getByLabel('amount 日期').check()
+      await drawer.getByRole('textbox', { name: 'SQL', exact: true }).fill(dataset.sql + ' ')
+      const saved = page.waitForRequest((request) => request.method() === 'PUT')
+      await drawer.getByRole('button', { name: '保存', exact: true }).click()
+      expect((await saved).postDataJSON().fields[1]).toMatchObject({
+        name: 'amount',
+        displayName: '订单金额',
+        role: 'MEASURE',
+        date: true,
+      })
+      await expect(drawer).not.toBeVisible()
+    })
     test('新增保存与删除', async ({ page }) => {
       await mock(page)
       await open(page, 'datasets', manage)

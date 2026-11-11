@@ -266,7 +266,6 @@ class ExternalJdbcConnector {
     private static String postgres(InetAddress address, ConnectionSettings settings, Properties properties) {
         properties.setProperty("connectTimeout", String.valueOf(CONNECT_TIMEOUT_SECONDS));
         properties.setProperty("loginTimeout", String.valueOf(READ_TIMEOUT_SECONDS));
-        properties.setProperty("socketTimeout", String.valueOf(READ_TIMEOUT_SECONDS));
         // 不尝试 Kerberos：服务所在环境的凭据不能被用来连接租户的库
         properties.setProperty("gssEncMode", "disable");
         // PostgreSQL 默认元数据会列出没有权限的表，浏览只返回该账号获授权的对象。
@@ -279,7 +278,6 @@ class ExternalJdbcConnector {
 
     private static String mysql(InetAddress address, ConnectionSettings settings, Properties properties) {
         properties.setProperty("connectTimeout", String.valueOf(CONNECT_TIMEOUT_SECONDS * 1000));
-        properties.setProperty("socketTimeout", String.valueOf(READ_TIMEOUT_SECONDS * 1000));
         // LOAD DATA LOCAL 可让对方服务器读取服务所在机器的任意文件；autoDeserialize 会反序列化对方返回的 Java 对象
         properties.setProperty("allowLoadLocalInfile", "false");
         properties.setProperty("allowUrlInLocalInfile", "false");
@@ -297,7 +295,6 @@ class ExternalJdbcConnector {
         // 连接的是 IP，证书按租户填写的主机名校验
         properties.setProperty("hostNameInCertificate", settings.host());
         properties.setProperty("loginTimeout", String.valueOf(CONNECT_TIMEOUT_SECONDS));
-        properties.setProperty("socketTimeout", String.valueOf(READ_TIMEOUT_SECONDS * 1000));
         // 不用服务所在环境的 Windows / Kerberos 凭据登录租户的库
         properties.setProperty("integratedSecurity", "false");
         // TDS 路由可由不可信服务器下发，后续 socket 同样只能连接已检查的目标。
@@ -312,7 +309,6 @@ class ExternalJdbcConnector {
     /** 服务名已由 {@link DataSourceType#acceptsDatabase} 限定为服务名字符，不能借括号改写连接描述符。 */
     private static String oracle(InetAddress address, ConnectionSettings settings, Properties properties) {
         properties.setProperty("oracle.net.CONNECT_TIMEOUT", String.valueOf(CONNECT_TIMEOUT_SECONDS * 1000));
-        properties.setProperty("oracle.jdbc.ReadTimeout", String.valueOf(READ_TIMEOUT_SECONDS * 1000));
         return "jdbc:oracle:thin:@//" + urlHost(address) + ":" + settings.port() + "/" + settings.database();
     }
 

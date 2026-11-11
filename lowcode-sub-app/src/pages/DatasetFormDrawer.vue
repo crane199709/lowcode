@@ -80,6 +80,7 @@ const previewing = ref(false)
 const saving = ref(false)
 let revision = 0
 let sourceRequest = 0
+let fieldOverrides = new Map<string, DatasetField>()
 const title = computed(() => t(props.readonly ? 'view' : props.editing ? 'edit' : 'create'))
 const rules = computed(() =>
   Object.fromEntries(
@@ -101,6 +102,7 @@ watch(
   () => [form.dataSourceId, form.sql],
   () => {
     revision += 1
+    for (const field of fields.value) fieldOverrides.set(field.name, { ...field })
     preview.value = null
     fields.value = []
     error.value = null
@@ -119,6 +121,7 @@ watch(
       sql: props.editing?.sql ?? '',
     })
     fields.value = props.editing?.fields.map((field) => ({ ...field })) ?? []
+    fieldOverrides = new Map(fields.value.map((field) => [field.name, { ...field }]))
     preview.value = null
     error.value = null
     formRef.value?.clearValidate()
@@ -154,9 +157,10 @@ async function showResult() {
 async function runPreview() {
   if (!form.dataSourceId || !form.sql.trim()) {
     await formRef.value?.validate().catch(() => false)
-    return
+    return false
   }
   const current = revision
+  let succeeded = false
   previewing.value = true
   preview.value = null
   error.value = null
@@ -165,8 +169,11 @@ async function runPreview() {
       '/lowcode/datasets/preview',
       jsonBody('POST', { dataSourceId: form.dataSourceId, sql: form.sql }),
     )
-    if (current !== revision || !props.modelValue) return
-    const overrides = new Map(fields.value.map((field) => [field.name, field]))
+    if (current !== revision || !props.modelValue) return false
+    const overrides = new Map([
+      ...fieldOverrides,
+      ...fields.value.map((field) => [field.name, field] as const),
+    ])
     fields.value = result.fields.map((field) => {
       const previous = overrides.get(field.name)
       return previous
@@ -174,15 +181,19 @@ async function runPreview() {
         : field
     })
     preview.value = result
+    succeeded = true
   } catch (cause) {
     if (current === revision && props.modelValue) error.value = errorTip(cause, t('previewFailed'))
   } finally {
     previewing.value = false
   }
   if (current === revision) await showResult()
+  return succeeded
 }
 async function save() {
   if (!(await formRef.value?.validate().catch(() => false))) return
+  // SQL 改动后先用最新模型筛选同名覆盖，避免丢失显示配置或提交已经移除的 Field。
+  if (!fields.value.length && fieldOverrides.size && !(await runPreview())) return
   const current = revision
   saving.value = true
   error.value = null
