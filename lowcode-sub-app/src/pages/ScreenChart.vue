@@ -3,15 +3,22 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useTenantClient } from '@crane199709/sdk'
 import { ElButton } from 'element-plus'
 import { init, use, type EChartsType } from 'echarts/core'
-import { BarChart } from 'echarts/charts'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { SVGRenderer } from 'echarts/renderers'
-import type { BarConfig, WidgetData } from './widget-query'
+import {
+  chartHint,
+  chartNames,
+  chartReady,
+  type ChartConfig,
+  type WidgetData,
+  type ChartType,
+} from './widget-query'
 import type { ScreenWidget } from './screen'
 import { errorTip, jsonBody } from './data-source'
-use([BarChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer])
+use([BarChart, LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer])
 const props = defineProps<{
-  widget: ScreenWidget & { type: 'BAR'; config: BarConfig }
+  widget: ScreenWidget & { type: ChartType; config: ChartConfig }
   queryBase: string
 }>()
 const client = useTenantClient()
@@ -19,12 +26,7 @@ const surface = ref<HTMLElement>()
 const result = ref<WidgetData>()
 const message = ref('')
 const loading = ref(false)
-const ready = computed(
-  () =>
-    !!props.widget.config.datasetId &&
-    (props.widget.config.query?.dimensions?.length ?? 0) > 0 &&
-    (props.widget.config.query?.measures?.length ?? 0) > 0,
-)
+const ready = computed(() => chartReady(props.widget.type, props.widget.config))
 let chart: EChartsType | undefined
 let observer: ResizeObserver | undefined
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -35,29 +37,63 @@ function render() {
   }
   chart ??= init(surface.value, 'dark', { renderer: 'svg' })
   const dimensions = props.widget.config.query.dimensions.length
+  let categories = result.value.rows.map((row) =>
+    row
+      .slice(0, dimensions)
+      .map((v) => v ?? '—')
+      .join(' / '),
+  )
+  let series: object[] = props.widget.config.query.measures.map((_, i) => ({
+    type: props.widget.type === 'LINE' ? 'line' : 'bar',
+    name: result.value!.columns[dimensions + i]?.label ?? '',
+    data: result.value!.rows.map((row) => row[dimensions + i]),
+  }))
+  if (props.widget.type === 'STACKED_BAR') {
+    // 两个维度已由服务端聚合；转为系列时保留缺失组合及聚合结果中的 NULL，不补零或再次求和。
+    const keys = [...new Set(result.value.rows.map((row) => row[0]))]
+    const stacks = [...new Set(result.value.rows.map((row) => row[1]))]
+    const cells = new Map(
+      result.value.rows.map((row) => [JSON.stringify([row[0], row[1]]), row[2]]),
+    )
+    categories = keys.map((key) => String(key ?? '—'))
+    series = stacks.map((stack) => ({
+      type: 'bar',
+      stack: 'total',
+      name: String(stack ?? '—'),
+      data: keys.map((key) => cells.get(JSON.stringify([key, stack])) ?? null),
+    }))
+  }
   chart.setOption(
-    {
-      backgroundColor: 'transparent',
-      animation: false,
-      grid: { left: 72, right: 32, top: 64, bottom: 64 },
-      tooltip: { trigger: 'axis' },
-      legend: { top: 16 },
-      xAxis: {
-        type: 'category',
-        data: result.value.rows.map((row) =>
-          row
-            .slice(0, dimensions)
-            .map((v) => v ?? '—')
-            .join(' / '),
-        ),
-      },
-      yAxis: { type: 'value' },
-      series: props.widget.config.query.measures.map((_, i) => ({
-        type: 'bar',
-        name: result.value!.columns[dimensions + i]?.label ?? '',
-        data: result.value!.rows.map((row) => row[dimensions + i]),
-      })),
-    },
+    props.widget.type === 'PIE'
+      ? {
+          backgroundColor: 'transparent',
+          animation: false,
+          tooltip: { trigger: 'item' },
+          legend: { top: 16 },
+          series: [
+            {
+              type: 'pie',
+              stillShowZeroSum: false,
+              name: result.value.columns[1]?.label ?? '',
+              radius: [props.widget.config.donut ? '45%' : '0%', '68%'],
+              label: { formatter: '{b}: {c}' },
+              data: result.value.rows.map((row) => ({
+                name: String(row[0] ?? '—'),
+                value: row[1],
+              })),
+            },
+          ],
+        }
+      : {
+          backgroundColor: 'transparent',
+          animation: false,
+          grid: { left: 72, right: 32, top: 64, bottom: 64 },
+          tooltip: { trigger: 'axis' },
+          legend: { top: 16 },
+          xAxis: { type: 'category', data: categories },
+          yAxis: { type: 'value' },
+          series,
+        },
     true,
   )
   chart.resize()
@@ -105,6 +141,7 @@ watch(
     JSON.stringify([
       props.queryBase,
       props.widget.id,
+      props.widget.type,
       props.widget.config.datasetId,
       props.widget.config.query,
       props.widget.config.refreshSeconds,
@@ -122,6 +159,7 @@ watch(
   },
   { immediate: true },
 )
+watch(() => props.widget.config.donut, render)
 onMounted(() => {
   observer = new ResizeObserver(() => chart?.resize())
   if (surface.value) {
@@ -136,11 +174,11 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <div class="bar-widget" role="img" aria-label="基础柱状图" :aria-busy="loading">
+  <div class="chart-widget" role="img" :aria-label="chartNames[widget.type]" :aria-busy="loading">
     <div ref="surface" class="chart-surface" />
     <div v-if="!ready || message || !result?.rows.length" class="chart-state">
       <span>{{
-        !ready ? '选择数据集并拖入维度、度量' : message || (loading ? '正在取数…' : '暂无数据')
+        !ready ? chartHint(widget.type) : message || (loading ? '正在取数…' : '暂无数据')
       }}</span>
       <el-button v-if="message" link @pointerdown.stop @click.stop="load">重试</el-button>
     </div>
@@ -148,7 +186,7 @@ onBeforeUnmount(() => {
   </div>
 </template>
 <style scoped>
-.bar-widget {
+.chart-widget {
   width: 100%;
   height: 100%;
   position: relative;

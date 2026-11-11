@@ -202,7 +202,7 @@ public class ScreenService {
 
     private void validateQueries(ScreenDraft draft) {
         for (var widget : draft.widgets()) {
-            if ("BAR".equals(widget.type())) {
+            if (widget.isQueryWidget()) {
                 ScreenQueryService.config(json, widget);
             }
         }
