@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start:lowcode": "pnpm build && pnpm preview --host 127.0.0.1 --port 5176",
     "build": "pnpm lint && pnpm lint:style && vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
