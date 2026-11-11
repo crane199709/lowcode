@@ -1,70 +1,106 @@
 {
   "permissions": {
-    "order:read": {
-      "name": "查看订单",
-      "group": "订单"
+    "datasource:view": {
+      "name": "查看数据源",
+      "group": "数据源"
     },
-    "order:create": {
-      "name": "创建订单",
-      "group": "订单"
+    "datasource:manage": {
+      "name": "管理数据源",
+      "group": "数据源"
     },
-    "order:update": {
-      "name": "修改订单",
-      "group": "订单"
+    "dataset:view": {
+      "name": "查看数据集",
+      "group": "数据集"
     },
-    "order:delete": {
-      "name": "删除订单",
-      "group": "订单"
+    "dataset:manage": {
+      "name": "管理数据集",
+      "group": "数据集"
+    },
+    "screen:view": {
+      "name": "查看大屏",
+      "group": "大屏"
+    },
+    "screen:edit": {
+      "name": "编辑大屏",
+      "group": "大屏"
+    },
+    "screen:publish": {
+      "name": "发布大屏",
+      "group": "大屏"
     }
   },
   "menus": [
     {
       "code": "lowcode",
-      "name": "示例应用",
+      "name": "低代码",
       "icon": "grid",
       "children": [
         {
-          "code": "lowcode.overview",
-          "name": "订单概览",
+          "code": "lowcode.datasources",
+          "name": "数据源",
           "app": "lowcode",
-          "path": "overview",
-          "permission": "order:read"
+          "path": "datasources",
+          "permission": "datasource:view",
+          "actions": ["datasource:manage"]
+        },
+        {
+          "code": "lowcode.datasets",
+          "name": "数据集",
+          "app": "lowcode",
+          "path": "datasets",
+          "permission": "dataset:view",
+          "actions": ["dataset:manage"]
+        },
+        {
+          "code": "lowcode.screens",
+          "name": "大屏",
+          "app": "lowcode",
+          "path": "screens",
+          "permission": "screen:view",
+          "actions": ["screen:edit", "screen:publish"]
         }
       ]
     }
   ],
   "roles": [
     {
-      "code": "order-viewer",
-      "name": "订单查看员",
+      "code": "screen-designer",
+      "name": "大屏设计者",
       "permissions": [
-        "order:read"
+        "datasource:view",
+        "datasource:manage",
+        "dataset:view",
+        "dataset:manage",
+        "screen:view",
+        "screen:edit",
+        "screen:publish"
+      ]
+    },
+    {
+      "code": "screen-viewer",
+      "name": "大屏查看者",
+      "permissions": [
+        "screen:view"
       ]
     }
   ],
   "dataResources": [
     {
-      "code": "order",
-      "name": "订单",
-      "table": "orders",
+      "code": "screen",
+      "name": "大屏",
+      "table": "screens",
       "attributes": [
         {
           "code": "ownerId",
-          "name": "归属成员",
+          "name": "创建人",
           "type": "uuid",
           "column": "owner_id"
         },
         {
           "code": "departmentPath",
-          "name": "归属部门",
+          "name": "所属部门",
           "type": "ltree",
           "column": "department_path"
-        },
-        {
-          "code": "amount",
-          "name": "金额",
-          "type": "number",
-          "column": "amount"
         }
       ]
     }

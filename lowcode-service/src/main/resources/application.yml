@@ -41,7 +41,7 @@ forge:
     # RocketMQ Proxy gRPC 地址：接入清单 Topic 准备步骤
     endpoints: ${FORGE_ROCKETMQ_ENDPOINTS}
   manifest:
-    version: 1
+    version: 2
     # IAM 内部地址与本服务专属上报令牌：接入清单 Manifest 步骤
     iam-uri: ${FORGE_IAM_URI}
     token: ${FORGE_MANIFEST_TOKEN}

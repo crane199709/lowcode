@@ -3,8 +3,8 @@ package io.saasforge.lowcode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.saasforge.lowcode.order.entity.Order;
-import io.saasforge.lowcode.order.service.OrderService;
+import io.saasforge.lowcode.screen.entity.Screen;
+import io.saasforge.lowcode.screen.service.ScreenService;
 import io.saasforge.sdk.core.CurrentTenant;
 import io.saasforge.sdk.tenant.TenantRedisTemplate;
 import io.saasforge.sdk.web.PageQuery;
@@ -68,7 +68,7 @@ class TenantIsolationTest {
     DataSource dataSource;
 
     @Autowired
-    OrderService orderService;
+    ScreenService screenService;
 
     @Autowired
     @Qualifier("applicationTaskExecutor")
@@ -81,7 +81,7 @@ class TenantIsolationTest {
     StringRedisTemplate globalRedis;
 
     @BeforeEach
-    void grantOrderPermissions() {
+    void grantScreenPermissions() {
         for (UUID tenant : List.of(TENANT_A, TENANT_B)) {
             TestGrants.publishAll(globalRedis, tenant, TestTokens.MEMBERSHIP_ID);
         }
@@ -90,67 +90,67 @@ class TenantIsolationTest {
     }
 
     @Test
-    void tenantTokenCannotReadOrModifyAnotherTenantsOrders() throws Exception {
-        UUID orderA = createOrder(TENANT_A, "A 的订单");
-        UUID orderB = createOrder(TENANT_B, "B 的订单");
+    void tenantTokenCannotReadOrModifyAnotherTenantsScreens() throws Exception {
+        UUID screenA = createScreen(TENANT_A, "A 的大屏");
+        UUID screenB = createScreen(TENANT_B, "B 的大屏");
 
-        assertThat(orderA.version()).isEqualTo(7);
-        List<?> visibleToA = (List<?>) data(call(TENANT_A, HttpMethod.GET, "/orders", null));
+        assertThat(screenA.version()).isEqualTo(7);
+        List<?> visibleToA = (List<?>) data(call(TENANT_A, HttpMethod.GET, "/screens", null));
         assertThat(visibleToA)
-                .<Object>extracting(order -> ((Map<?, ?>) order).get("id"))
-                .contains(orderA.toString())
-                .doesNotContain(orderB.toString());
+                .<Object>extracting(screen -> ((Map<?, ?>) screen).get("id"))
+                .contains(screenA.toString())
+                .doesNotContain(screenB.toString());
 
-        Map<String, Object> change = Map.of("title", "被 A 篡改", "amount", 1);
-        // 跨租户与不存在的订单响应相同（traceId 除外），不泄露订单是否存在
-        String crossTenant = failure(TENANT_A, HttpMethod.GET, "/orders/" + orderB, null);
+        Map<String, Object> change = Map.of("name", "被 A 篡改");
+        // 跨租户与不存在的大屏响应相同（traceId 除外），不泄露大屏是否存在
+        String crossTenant = failure(TENANT_A, HttpMethod.GET, "/screens/" + screenB, null);
         assertThat(crossTenant)
-                .isEqualTo(failure(TENANT_A, HttpMethod.GET, "/orders/" + orderB, null))
-                .contains("\"code\":\"order.notFound\"", "\"httpStatus\":404");
+                .isEqualTo(failure(TENANT_A, HttpMethod.GET, "/screens/" + screenB, null))
+                .contains("\"code\":\"screen.notFound\"", "\"httpStatus\":404");
         UUID missing = UUID.randomUUID();
-        assertThat(failure(TENANT_A, HttpMethod.GET, "/orders/" + missing, null)
-                        .replace(missing.toString(), orderB.toString()))
+        assertThat(failure(TENANT_A, HttpMethod.GET, "/screens/" + missing, null)
+                        .replace(missing.toString(), screenB.toString()))
                 .isEqualTo(crossTenant);
-        assertThat(status(TENANT_A, HttpMethod.PUT, "/orders/" + orderB, change))
+        assertThat(status(TENANT_A, HttpMethod.PUT, "/screens/" + screenB, change))
                 .isEqualTo(404);
-        assertThat(status(TENANT_A, HttpMethod.DELETE, "/orders/" + orderB, null))
+        assertThat(status(TENANT_A, HttpMethod.DELETE, "/screens/" + screenB, null))
                 .isEqualTo(404);
 
-        Map<?, ?> untouched = (Map<?, ?>) data(call(TENANT_B, HttpMethod.GET, "/orders/" + orderB, null));
-        assertThat(untouched.get("title")).isEqualTo("B 的订单");
+        Map<?, ?> untouched = (Map<?, ?>) data(call(TENANT_B, HttpMethod.GET, "/screens/" + screenB, null));
+        assertThat(untouched.get("name")).isEqualTo("B 的大屏");
 
-        assertThat(status(TENANT_A, HttpMethod.PUT, "/orders/" + orderA, change))
+        assertThat(status(TENANT_A, HttpMethod.PUT, "/screens/" + screenA, change))
                 .isEqualTo(200);
-        assertThat(status(TENANT_A, HttpMethod.DELETE, "/orders/" + orderA, null))
+        assertThat(status(TENANT_A, HttpMethod.DELETE, "/screens/" + screenA, null))
                 .isEqualTo(200);
-        assertThat(status(TENANT_A, HttpMethod.GET, "/orders/" + orderA, null)).isEqualTo(404);
+        assertThat(status(TENANT_A, HttpMethod.GET, "/screens/" + screenA, null)).isEqualTo(404);
     }
 
     @Test
-    void sameIdentitySeesOnlyTheActiveTenantsOrdersAfterSwitching() throws Exception {
+    void sameIdentitySeesOnlyTheActiveTenantsScreensAfterSwitching() throws Exception {
         String tokenA = TestTokens.forMembership(TENANT_A, MEMBERSHIP_A);
         String tokenB = TestTokens.forMembership(TENANT_B, MEMBERSHIP_B);
         Map<?, ?> createdA = (Map<?, ?>) data(client(tokenA)
                 .post()
-                .uri("/orders")
+                .uri("/screens")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("title", "切换前 A 的订单", "amount", 1))
+                .body(Map.of("name", "切换前 A 的大屏"))
                 .retrieve());
         Map<?, ?> createdB = (Map<?, ?>) data(client(tokenB)
                 .post()
-                .uri("/orders")
+                .uri("/screens")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("title", "切换后 B 的订单", "amount", 2))
+                .body(Map.of("name", "切换后 B 的大屏"))
                 .retrieve());
 
-        List<?> seenInA = (List<?>) data(client(tokenA).get().uri("/orders").retrieve());
-        List<?> seenInB = (List<?>) data(client(tokenB).get().uri("/orders").retrieve());
+        List<?> seenInA = (List<?>) data(client(tokenA).get().uri("/screens").retrieve());
+        List<?> seenInB = (List<?>) data(client(tokenB).get().uri("/screens").retrieve());
         assertThat(seenInA)
-                .<Object>extracting(order -> ((Map<?, ?>) order).get("id"))
+                .<Object>extracting(screen -> ((Map<?, ?>) screen).get("id"))
                 .contains(createdA.get("id"))
                 .doesNotContain(createdB.get("id"));
         assertThat(seenInB)
-                .<Object>extracting(order -> ((Map<?, ?>) order).get("id"))
+                .<Object>extracting(screen -> ((Map<?, ?>) screen).get("id"))
                 .contains(createdB.get("id"))
                 .doesNotContain(createdA.get("id"));
         Map<?, ?> contextB =
@@ -169,46 +169,46 @@ class TenantIsolationTest {
 
     @Test
     void rlsBlocksSqlThatBypassesTheInterceptorOnApplicationAccount() throws Exception {
-        UUID orderB = createOrder(TENANT_B, "B 的订单");
+        UUID screenB = createScreen(TENANT_B, "B 的大屏");
 
         try (Connection connection = connectionFor(TENANT_A)) {
             assertThat(currentUser(connection)).isEqualTo("demo_app");
-            assertCrossTenantAccessBlocked(connection, orderB);
+            assertCrossTenantAccessBlocked(connection, screenB);
         }
         try (Connection connection = dataSource.getConnection()) {
-            assertThat(count(connection, "SELECT count(*) FROM orders")).isZero();
+            assertThat(count(connection, "SELECT count(*) FROM screens")).isZero();
         }
     }
 
     @Test
     void rlsAlsoBindsMigratorAccountThatOwnsTheTable() throws Exception {
-        UUID orderB = createOrder(TENANT_B, "B 的订单");
+        UUID screenB = createScreen(TENANT_B, "B 的大屏");
 
         try (Connection connection =
                 DriverManager.getConnection(postgres.getJdbcUrl(), "demo_migrator", "demo_migrator")) {
-            assertThat(count(connection, "SELECT count(*) FROM orders")).isZero();
+            assertThat(count(connection, "SELECT count(*) FROM screens")).isZero();
             try (PreparedStatement statement =
                     connection.prepareStatement("SELECT set_config('app.tenant_id', ?, false)")) {
                 statement.setString(1, TENANT_A.toString());
                 statement.execute();
             }
-            assertCrossTenantAccessBlocked(connection, orderB);
+            assertCrossTenantAccessBlocked(connection, screenB);
         }
     }
 
     @Test
     void asyncWorkCarriesSubmittersTenantAndFailsWithoutOne() throws Exception {
-        UUID orderA = createOrder(TENANT_A, "A 的订单");
+        UUID screenA = createScreen(TENANT_A, "A 的大屏");
 
         var carried = new AtomicReference<Future<List<UUID>>>();
         CurrentTenant.run(
                 TENANT_A,
                 () -> carried.set(executor.submit(() ->
-                        orderService.list(FIRST_PAGE).stream().map(Order::getId).toList())));
-        assertThat(carried.get().get()).contains(orderA);
+                        screenService.list(FIRST_PAGE).stream().map(Screen::getId).toList())));
+        assertThat(carried.get().get()).contains(screenA);
 
         // 定时任务等没有提交方上下文的线程与此相同：未声明租户时显式失败，而不是读到空结果或跨租户数据
-        Future<?> undeclared = executor.submit(() -> orderService.list(FIRST_PAGE));
+        Future<?> undeclared = executor.submit(() -> screenService.list(FIRST_PAGE));
         assertThatThrownBy(undeclared::get)
                 .isInstanceOf(ExecutionException.class)
                 .hasRootCauseInstanceOf(IllegalStateException.class);
@@ -230,21 +230,21 @@ class TenantIsolationTest {
         assertThatThrownBy(() -> tenantRedis.opsForValue().get("greeting")).isInstanceOf(IllegalStateException.class);
     }
 
-    private static void assertCrossTenantAccessBlocked(Connection connection, UUID orderOfB) throws SQLException {
-        try (PreparedStatement select = connection.prepareStatement("SELECT count(*) FROM orders WHERE id = ?")) {
-            select.setObject(1, orderOfB);
+    private static void assertCrossTenantAccessBlocked(Connection connection, UUID screenOfB) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT count(*) FROM screens WHERE id = ?")) {
+            select.setObject(1, screenOfB);
             assertThat(count(select)).isZero();
         }
-        try (PreparedStatement update = connection.prepareStatement("UPDATE orders SET title = 'x' WHERE id = ?")) {
-            update.setObject(1, orderOfB);
+        try (PreparedStatement update = connection.prepareStatement("UPDATE screens SET name = 'x' WHERE id = ?")) {
+            update.setObject(1, screenOfB);
             assertThat(update.executeUpdate()).isZero();
         }
-        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM orders WHERE id = ?")) {
-            delete.setObject(1, orderOfB);
+        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM screens WHERE id = ?")) {
+            delete.setObject(1, screenOfB);
             assertThat(delete.executeUpdate()).isZero();
         }
         try (PreparedStatement insert = connection.prepareStatement(
-                "INSERT INTO orders (id, tenant_id, title, amount) VALUES (?, ?, '伪造', 1)")) {
+                "INSERT INTO screens (id, tenant_id, name) VALUES (?, ?, '伪造')")) {
             insert.setObject(1, UUID.randomUUID());
             insert.setObject(2, TENANT_B);
             assertThatThrownBy(insert::executeUpdate)
@@ -281,9 +281,9 @@ class TenantIsolationTest {
         }
     }
 
-    private UUID createOrder(UUID tenantId, String title) throws Exception {
+    private UUID createScreen(UUID tenantId, String name) throws Exception {
         Map<?, ?> created =
-                (Map<?, ?>) data(call(tenantId, HttpMethod.POST, "/orders", Map.of("title", title, "amount", 100)));
+                (Map<?, ?>) data(call(tenantId, HttpMethod.POST, "/screens", Map.of("name", name)));
         return UUID.fromString((String) created.get("id"));
     }
 

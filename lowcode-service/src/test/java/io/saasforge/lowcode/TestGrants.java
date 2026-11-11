@@ -14,11 +14,10 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 模拟 iam 按 Token 版本发布的 Membership 权限明细（ADR-0005），TestTokens 签发的 Token 版本默认为 1。
  *
- * <p>不指定数据范围时按 Tenant Admin 发布，订单为「全部」：数据权限默认拒绝，不关心数据权限的测试不能因此看不到数据。
+ * <p>不指定数据范围时按 Tenant Admin 发布，大屏为「全部」：数据权限默认拒绝，不关心数据权限的测试不能因此看不到数据。
  */
 final class TestGrants {
-    static final List<String> ALL_ORDER_PERMISSIONS =
-            List.of("order:read", "order:create", "order:update", "order:delete");
+    static final List<String> ALL_SCREEN_PERMISSIONS = List.of("screen:view", "screen:edit");
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
@@ -28,7 +27,7 @@ final class TestGrants {
         publish(redis, tenantId, membershipId, 1, permissions, SubjectAttributes.NONE, List.of(DataScope.ALL));
     }
 
-    /** 以给定版本发布明细；每个数据范围相当于一个持有该订单 Data Scope 的 Role，为空表示没有任何策略。 */
+    /** 以给定版本发布明细；每个数据范围相当于一个持有该大屏 Data Scope 的 Role，为空表示没有任何策略。 */
     static void publish(
             StringRedisTemplate redis,
             UUID tenantId,
@@ -36,7 +35,7 @@ final class TestGrants {
             long version,
             List<String> permissions,
             SubjectAttributes subject,
-            List<DataScope> orderScopes) {
+            List<DataScope> screenScopes) {
         publishPolicies(
                 redis,
                 tenantId,
@@ -44,10 +43,10 @@ final class TestGrants {
                 version,
                 permissions,
                 subject,
-                orderScopes.stream().map(DataScope::template).toList());
+                screenScopes.stream().map(DataScope::template).toList());
     }
 
-    /** 以给定版本发布明细；每条订单策略（JSON 表达式树）相当于一个持有该策略的 Role，如编辑器保存的自定义条件。 */
+    /** 以给定版本发布明细；每条大屏策略（JSON 表达式树）相当于一个持有该策略的 Role，如编辑器保存的自定义条件。 */
     static void publishPolicies(
             StringRedisTemplate redis,
             UUID tenantId,
@@ -55,8 +54,8 @@ final class TestGrants {
             long version,
             List<String> permissions,
             SubjectAttributes subject,
-            List<String> orderPolicies) {
-        Map<String, List<String>> policies = orderPolicies.isEmpty() ? Map.of() : Map.of("order", orderPolicies);
+            List<String> screenPolicies) {
+        Map<String, List<String>> policies = screenPolicies.isEmpty() ? Map.of() : Map.of("screen", screenPolicies);
         redis.opsForValue()
                 .set(
                         MembershipStateKeys.grants(tenantId, membershipId, version),
@@ -65,6 +64,6 @@ final class TestGrants {
     }
 
     static void publishAll(StringRedisTemplate redis, UUID tenantId, UUID membershipId) {
-        publish(redis, tenantId, membershipId, ALL_ORDER_PERMISSIONS);
+        publish(redis, tenantId, membershipId, ALL_SCREEN_PERMISSIONS);
     }
 }
