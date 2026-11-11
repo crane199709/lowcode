@@ -3,6 +3,7 @@ package io.saasforge.lowcode.screen.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import io.saasforge.lowcode.screen.entity.Screen;
 import java.util.List;
+import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -17,5 +18,8 @@ public interface ScreenMapper extends BaseMapper<Screen> {
      * @param offset 偏移量
      * @return 当前页大屏
      */
-    List<Screen> selectPage(@Param("limit") int limit, @Param("offset") long offset);
+    List<Screen> selectPage(
+            @Param("limit") int limit, @Param("offset") long offset, @Param("publishedOnly") boolean publishedOnly);
+    /** 将当前已保存的草稿与名称原子冻结为快照；受 Tenant 与 Data Policy 过滤。 */
+    int publish(@Param("id") UUID id, @Param("updatedBy") UUID updatedBy);
 }

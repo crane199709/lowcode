@@ -5,6 +5,9 @@ const initial = {
   id: '0193a000-0000-7000-8000-000000000021',
   name: '华东区域经营分析大屏（季度销售与目标完成情况）',
   draft: { designWidth: 1920, designHeight: 1080, backgroundColor: '#101827', widgets: [] },
+  designWidth: 1920,
+  designHeight: 1080,
+  publishedAt: null,
   updatedAt: '2026-11-11T10:20:30+08:00',
 }
 const permissions = ['screen:view', 'screen:edit']
@@ -183,7 +186,7 @@ for (const [label, width, height] of [
       expect(errors).toEqual([])
     })
     test('只读列表', async ({ page }) => {
-      await mock(page)
+      await mock(page, [{ ...initial, draft: undefined, publishedAt: '2026-11-11T10:20:30+08:00' }])
       await open(page, 'screens', ['screen:view'])
       await expect(page.getByText(initial.name, { exact: true })).toBeVisible()
       for (const name of ['新增', '编辑', '复制', '删除'])

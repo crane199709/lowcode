@@ -65,6 +65,10 @@ final class TestTokens {
         return token(KEY, ISSUER, Instant.now().plusSeconds(900), tenantId, membershipId, version);
     }
 
+    static String forIdentity(UUID tenantId, UUID membershipId, UUID identityId) throws Exception {
+        return token(KEY, ISSUER, Instant.now().plusSeconds(900), tenantId, membershipId, 1, identityId);
+    }
+
     static String token(RSAKey key, String issuer, Instant expires, UUID tenantId) throws Exception {
         return token(key, issuer, expires, tenantId, MEMBERSHIP_ID, 1);
     }
@@ -72,9 +76,15 @@ final class TestTokens {
     private static String token(
             RSAKey key, String issuer, Instant expires, UUID tenantId, UUID membershipId, long version)
             throws Exception {
+        return token(key, issuer, expires, tenantId, membershipId, version, IDENTITY_ID);
+    }
+
+    private static String token(
+            RSAKey key, String issuer, Instant expires, UUID tenantId, UUID membershipId, long version, UUID identityId)
+            throws Exception {
         var claims = new JWTClaimsSet.Builder()
                 .issuer(issuer)
-                .subject(IDENTITY_ID.toString())
+                .subject(identityId.toString())
                 .audience("tenant-app")
                 .issueTime(Date.from(Instant.now().minusSeconds(300)))
                 .expirationTime(Date.from(expires))

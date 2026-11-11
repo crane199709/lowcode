@@ -3,10 +3,20 @@
 <mapper namespace="io.saasforge.lowcode.screen.mapper.ScreenMapper">
     <select id="selectPage" resultType="io.saasforge.lowcode.screen.entity.Screen">
         <!-- 手写查询不经过 MyBatis-Plus 的逻辑删除条件，须自行排除已删除的行 -->
-        SELECT id, name, draft, owner_id, department_path, created_at, updated_at, created_by, updated_by, deleted
+        SELECT id, name, draft, published, published_name, published_at, owner_id, department_path, created_at, updated_at, created_by, updated_by, deleted
         FROM screens
         WHERE NOT deleted
-        ORDER BY updated_at DESC, id
+        <if test="publishedOnly">AND published IS NOT NULL</if>
+        <choose>
+            <when test="publishedOnly">ORDER BY published_at DESC, id</when>
+            <otherwise>ORDER BY updated_at DESC, id</otherwise>
+        </choose>
         LIMIT #{limit} OFFSET #{offset}
     </select>
+    <update id="publish">
+        UPDATE screens
+        SET published = draft, published_name = name, published_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
+        WHERE id = #{id} AND NOT deleted
+    </update>
 </mapper>

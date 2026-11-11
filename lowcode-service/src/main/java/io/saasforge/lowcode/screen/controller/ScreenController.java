@@ -3,6 +3,7 @@ package io.saasforge.lowcode.screen.controller;
 import io.saasforge.lowcode.screen.entity.Screen;
 import io.saasforge.lowcode.screen.model.ScreenDraft;
 import io.saasforge.lowcode.screen.service.ScreenService;
+import io.saasforge.sdk.audit.AuditLog;
 import io.saasforge.sdk.core.api.ApiResponse;
 import io.saasforge.sdk.security.RequiresPermission;
 import io.saasforge.sdk.web.PageQuery;
@@ -56,7 +57,7 @@ class ScreenController {
     @GetMapping("/{id}")
     @RequiresPermission("screen:view")
     ApiResponse<ScreenResponse> get(@PathVariable UUID id) {
-        return ApiResponse.ok(response(screenService.get(id)));
+        return ApiResponse.ok(response(screenService.readable(id)));
     }
 
     @Operation(summary = "修改大屏名称与草稿")
@@ -88,8 +89,37 @@ class ScreenController {
         return ApiResponse.created(response(screenService.copy(id)));
     }
 
+    @Operation(summary = "发布当前已保存的草稿，覆盖上一份快照")
+    @PostMapping("/{id}/publish")
+    @RequiresPermission("screen:publish")
+    @AuditLog(action = "screen.publish", resourceType = "screen", resourceId = "#id")
+    ApiResponse<ScreenService.PublishedScreen> publish(@PathVariable UUID id) {
+        return ApiResponse.ok(screenService.publish(id));
+    }
+
+    @Operation(summary = "读取当前成员数据范围内的大屏已发布快照")
+    @GetMapping("/{id}/published")
+    @RequiresPermission("screen:view")
+    ApiResponse<ScreenService.PublishedScreen> published(@PathVariable UUID id) {
+        return ApiResponse.ok(screenService.published(id));
+    }
+
     private ScreenResponse response(Screen screen) {
-        return ScreenResponse.from(screen, screenService.draft(screen));
+        boolean editable = screenService.canEdit();
+        ScreenDraft definition = editable
+                ? screenService.draft(screen)
+                : screenService.published(screen).definition();
+        return new ScreenResponse(
+                screen.getId(),
+                editable ? screen.getName() : screen.getPublishedName(),
+                editable ? definition : null,
+                definition.designWidth(),
+                definition.designHeight(),
+                screen.getPublishedAt(),
+                screen.getOwnerId(),
+                screen.getDepartmentPath(),
+                screen.getCreatedAt(),
+                editable ? screen.getUpdatedAt() : screen.getPublishedAt());
     }
 
     @Operation(summary = "删除大屏")
@@ -112,19 +142,11 @@ class ScreenController {
             UUID id,
             String name,
             ScreenDraft draft,
+            int designWidth,
+            int designHeight,
+            OffsetDateTime publishedAt,
             UUID ownerId,
             String departmentPath,
             OffsetDateTime createdAt,
-            OffsetDateTime updatedAt) {
-        static ScreenResponse from(Screen screen, ScreenDraft draft) {
-            return new ScreenResponse(
-                    screen.getId(),
-                    screen.getName(),
-                    draft,
-                    screen.getOwnerId(),
-                    screen.getDepartmentPath(),
-                    screen.getCreatedAt(),
-                    screen.getUpdatedAt());
-        }
-    }
+            OffsetDateTime updatedAt) {}
 }

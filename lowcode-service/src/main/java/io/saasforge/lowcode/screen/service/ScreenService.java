@@ -5,8 +5,11 @@ import io.saasforge.lowcode.screen.entity.Screen;
 import io.saasforge.lowcode.screen.mapper.ScreenMapper;
 import io.saasforge.lowcode.screen.model.ScreenDraft;
 import io.saasforge.sdk.abac.data.DataPermission;
+import io.saasforge.sdk.core.CurrentActorProvider;
 import io.saasforge.sdk.core.api.ForgeException;
+import io.saasforge.sdk.security.MembershipGrantStore;
 import io.saasforge.sdk.web.PageQuery;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,11 +31,20 @@ public class ScreenService {
     private final ScreenMapper screenMapper;
     private final DataPermission dataPermission;
     private final JsonMapper json;
+    private final MembershipGrantStore grants;
+    private final CurrentActorProvider actors;
 
-    public ScreenService(ScreenMapper screenMapper, DataPermission dataPermission, JsonMapper json) {
+    public ScreenService(
+            ScreenMapper screenMapper,
+            DataPermission dataPermission,
+            JsonMapper json,
+            MembershipGrantStore grants,
+            CurrentActorProvider actors) {
         this.screenMapper = screenMapper;
         this.dataPermission = dataPermission;
         this.json = json;
+        this.grants = grants;
+        this.actors = actors;
     }
 
     /**
@@ -58,11 +70,25 @@ public class ScreenService {
     }
 
     public List<Screen> list(PageQuery query) {
-        return screenMapper.selectPage(query.size(), query.offset());
+        return screenMapper.selectPage(query.size(), query.offset(), !canEdit());
     }
 
     public long count() {
-        return screenMapper.selectCount(new LambdaQueryWrapper<>());
+        return screenMapper.selectCount(new LambdaQueryWrapper<Screen>().isNotNull(!canEdit(), Screen::getPublished));
+    }
+
+    public boolean canEdit() {
+        // 系统异步任务沿用 SDK 的约定：只受租户隔离，不要求成员权限；HTTP 仍由方法权限先拦截。
+        return dataPermission.currentSubject().isEmpty()
+                || grants.current().permissions().contains("screen:edit");
+    }
+
+    public Screen readable(UUID id) {
+        Screen screen = get(id);
+        if (!canEdit() && screen.getPublished() == null) {
+            throw notFound(id);
+        }
+        return screen;
     }
 
     public Screen get(UUID id) {
@@ -116,6 +142,34 @@ public class ScreenService {
         String name = original.getName();
         return create(name.substring(0, Math.min(name.length(), 116)) + "（副本）", draft(original));
     }
+
+    @Transactional
+    public PublishedScreen publish(UUID id) {
+        if (screenMapper.publish(id, actors.currentActor().orElse(null)) == 0) {
+            throw notFound(id);
+        }
+        return published(id);
+    }
+
+    /** 播放与相关资源读取共同使用此入口，只解析可见 Screen 的已发布快照。 */
+    public PublishedScreen published(UUID id) {
+        Screen screen = get(id);
+        return published(screen);
+    }
+
+    /** 复用已按数据范围查询的行，避免列表响应逐条重新查询及跨次读取不一致。 */
+    public PublishedScreen published(Screen screen) {
+        if (screen.getPublished() == null) {
+            throw notFound(screen.getId());
+        }
+        return new PublishedScreen(
+                screen.getId(),
+                screen.getPublishedName(),
+                json.readValue(screen.getPublished(), ScreenDraft.class),
+                screen.getPublishedAt());
+    }
+
+    public record PublishedScreen(UUID id, String name, ScreenDraft definition, OffsetDateTime publishedAt) {}
 
     public void delete(UUID id) {
         if (screenMapper.deleteById(id) == 0) {

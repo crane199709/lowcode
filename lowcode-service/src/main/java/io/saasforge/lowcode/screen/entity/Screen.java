@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.saasforge.sdk.abac.data.LtreeTypeHandler;
 import io.saasforge.sdk.tenant.AuditableEntity;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /** 不声明 tenant_id：租户列由 SDK 在 SQL 中注入，业务代码无从读写。 */
@@ -12,6 +13,9 @@ public class Screen extends AuditableEntity {
     private UUID id;
     private String name;
     private String draft;
+    private String published;
+    private String publishedName;
+    private OffsetDateTime publishedAt;
     // 数据归属，是 Data Resource「screen」的资源属性；创建时取当前成员与其主部门，之后不随接口修改。
     private UUID ownerId;
 
@@ -40,6 +44,30 @@ public class Screen extends AuditableEntity {
 
     public void setDraft(String draft) {
         this.draft = draft;
+    }
+
+    public String getPublished() {
+        return published;
+    }
+
+    public void setPublished(String published) {
+        this.published = published;
+    }
+
+    public String getPublishedName() {
+        return publishedName;
+    }
+
+    public void setPublishedName(String publishedName) {
+        this.publishedName = publishedName;
+    }
+
+    public OffsetDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(OffsetDateTime publishedAt) {
+        this.publishedAt = publishedAt;
     }
 
     public UUID getOwnerId() {
