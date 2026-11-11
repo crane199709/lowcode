@@ -50,11 +50,13 @@ async function mock(page: Page, definition = draft, date = false) {
         data = [
           {
             id: datasetId,
-            name: '季度销售明细（区域与含税销售金额）',
+            name: date
+              ? '日期销售明细（订单发生日期与含税销售金额）'
+              : '季度销售明细（区域与含税销售金额）',
             fields: [
               {
                 name: 'region',
-                displayName: '区域',
+                displayName: date ? '订单发生日期' : '区域',
                 type: 'STRING',
                 role: 'DIMENSION',
                 date,
@@ -71,7 +73,17 @@ async function mock(page: Page, definition = draft, date = false) {
         ]
       else if (path.endsWith('/query')) {
         queries.push(route.request().postDataJSON())
-        data = result
+        data = date
+          ? {
+              ...result,
+              columns: [{ id: 'd0', label: '订单发生日期', type: 'STRING' }, result.columns[1]],
+              rows: [
+                ['2024-02', 138000],
+                ['2024-03', 96000],
+                ['2025-02', 72000],
+              ],
+            }
+          : result
       } else if (path.endsWith('/published'))
         data = {
           id: screenId,
@@ -103,10 +115,20 @@ test('编辑者拖入维度与度量得到实际柱状图并保存配置', async
   await expect(page.getByRole('menuitem', { name: '柱状图', exact: true })).not.toBeVisible()
   await page.getByRole('combobox', { name: '柱状图数据集', exact: true }).press('ArrowDown')
   await page
-    .getByRole('option', { name: '季度销售明细（区域与含税销售金额）', exact: true })
+    .getByRole('option', {
+      name: date
+        ? '日期销售明细（订单发生日期与含税销售金额）'
+        : '季度销售明细（区域与含税销售金额）',
+      exact: true,
+    })
     .click()
   await expect(
-    page.getByRole('option', { name: '季度销售明细（区域与含税销售金额）', exact: true }),
+    page.getByRole('option', {
+      name: date
+        ? '日期销售明细（订单发生日期与含税销售金额）'
+        : '季度销售明细（区域与含税销售金额）',
+      exact: true,
+    }),
   ).not.toBeVisible()
   await page.getByRole('group', { name: '度量放置区', exact: true }).scrollIntoViewIfNeeded()
   await page
@@ -295,9 +317,18 @@ for (const [name, width, height] of viewports) {
 
 for (const [name, width, height] of viewports) {
   test(`日期维度按日月年分组并保存 ${name}`, async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    page.on('console', (message) => {
+      if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text())
+    })
     await page.setViewportSize({ width, height })
     const state = await mock(page, { ...draft, widgets: [widget] }, true)
     await open(page, `screens/${screenId}/edit`, ['screen:edit'])
+    await expect(page).toHaveURL(new RegExp(`/screens/${screenId}/edit$`))
+    await expect(page).toHaveTitle(/lowcode/)
+    await expect(page.getByRole('region', { name: '大屏编辑器', exact: true })).toBeVisible()
+    await expect(page.locator('vite-error-overlay')).toHaveCount(0)
     await page.getByTestId('screen-widget').click()
     const grouping = page.getByRole('combobox', { name: '维度1日期分组', exact: true })
     await grouping.press('ArrowDown')
@@ -312,5 +343,6 @@ for (const [name, width, height] of viewports) {
     await grouping.press('ArrowDown')
     await page.getByRole('option', { name: '按日', exact: true }).click()
     await expect.poll(() => JSON.stringify(state.queries.at(-1))).toContain('"dateGrouping":"DAY"')
+    expect(errors).toEqual([])
   })
 }
