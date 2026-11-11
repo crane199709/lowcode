@@ -11,6 +11,7 @@ import java.util.UUID;
 public class Screen extends AuditableEntity {
     private UUID id;
     private String name;
+    private String draft;
     // 数据归属，是 Data Resource「screen」的资源属性；创建时取当前成员与其主部门，之后不随接口修改。
     private UUID ownerId;
 
@@ -31,6 +32,14 @@ public class Screen extends AuditableEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDraft() {
+        return draft;
+    }
+
+    public void setDraft(String draft) {
+        this.draft = draft;
     }
 
     public UUID getOwnerId() {

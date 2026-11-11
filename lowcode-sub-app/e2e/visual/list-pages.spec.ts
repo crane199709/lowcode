@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { open, viewports } from './session'
 
-// 尚未接入接口的列表页只有空状态；接入接口后移到各自的用例文件，补充接近真实长度的数据。
+// 列表空状态保留在公共用例；大屏的完整行为见 screens.spec.ts。
 const pages = [['screens', '大屏', '暂无大屏']] as const
 
 for (const [label, width, height] of viewports) {
@@ -10,6 +10,18 @@ for (const [label, width, height] of viewports) {
 
     for (const [path, title, empty] of pages) {
       test(`${title}空列表`, async ({ page }) => {
+        await page.route(
+          (url) => url.pathname === '/lowcode/screens',
+          (route) =>
+            route.fulfill({
+              json: {
+                code: 'ok',
+                httpStatus: 200,
+                data: [],
+                meta: { page: { number: 1, size: 20, totalElements: 0, totalPages: 0 } },
+              },
+            }),
+        )
         await open(page, path)
         await expect(page.getByRole('heading', { name: title })).toBeVisible()
         await expect(page.getByText(empty)).toBeVisible()
