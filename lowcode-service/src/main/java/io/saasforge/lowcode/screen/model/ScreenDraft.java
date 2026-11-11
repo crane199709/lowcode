@@ -64,7 +64,7 @@ public record ScreenDraft(
     public record Widget(
             @NotBlank @Size(max = 80) String id,
 
-            @NotNull @Pattern(regexp = "TEXT|IMAGE|BAR|LINE|STACKED_BAR|PIE")
+            @NotNull @Pattern(regexp = "TEXT|IMAGE|BAR|LINE|STACKED_BAR|PIE|DETAIL_TABLE|SUMMARY_TABLE|INDICATOR")
             String type,
 
             @Min(0) @Max(7680) int x,
@@ -75,7 +75,8 @@ public record ScreenDraft(
             @NotNull JsonNode config) {
         @JsonIgnore
         public boolean isQueryWidget() {
-            return "BAR".equals(type) || "LINE".equals(type) || "STACKED_BAR".equals(type) || "PIE".equals(type);
+            return List.of("BAR", "LINE", "STACKED_BAR", "PIE", "DETAIL_TABLE", "SUMMARY_TABLE", "INDICATOR")
+                    .contains(type);
         }
 
         // config 保留按 Widget 类型演进的接口，但已支持类型必须在保存前验证，不能把坏配置留给渲染器。

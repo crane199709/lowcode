@@ -385,6 +385,47 @@ class ScreenQueryApiTest {
         assertThat(rows(result).toString()).isEqualTo("[[true, ?, 3]]");
     }
 
+    @Test
+    void detailTableSelectsRawFieldsWithoutGroupingAndAppliesBoundFiltersSortsAndLimit() {
+        String dataset = dataset(
+                "SELECT * FROM (VALUES ('east',10.0),('east',10.0),('west',8.0),('north',7.0)) sales(region,amount)");
+        var q = query(List.of(), List.of());
+        q.put("mode", "DETAIL");
+        q.put("fields", List.of("amount", "region"));
+        q.put("sorts", List.of(Map.of("column", 0, "direction", "DESC")));
+        var definition = new HashMap<>(draft(dataset, q, 0));
+        var widget = new HashMap<>((Map<String, Object>) ((List<?>) definition.get("widgets")).get(0));
+        widget.put("type", "DETAIL_TABLE");
+        definition.put("widgets", List.of(widget));
+        var saved = call(HttpMethod.POST, "/screens", Map.of("name", "销售明细", "draft", definition));
+        assertThat(saved.get("httpStatus")).isEqualTo(201);
+        String screen = id(saved);
+        assertThat(call(HttpMethod.POST, "/screens/" + screen + "/publish", null)
+                        .get("code"))
+                .isEqualTo("ok");
+        var result = call(
+                HttpMethod.GET,
+                "/screens/" + screen + "/published/widgets/bar/query?datasetId=" + UUID.randomUUID(),
+                null);
+        QueryResultAssertions.rows(
+                rows(result), new Object[] {10, "east"}, new Object[] {10, "east"}, new Object[] {8, "west"});
+        assertThat(((Map<?, ?>) result.get("data")).get("truncated")).isEqualTo(true);
+        assertThat(((Map<?, ?>) result.get("data")).get("maxRows")).isEqualTo(3);
+        q.put("filters", List.of(Map.of("field", "region", "operator", "EQ", "values", List.of("east"))));
+        q.put("topN", 2);
+        result = call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget);
+        QueryResultAssertions.rows(rows(result), new Object[] {10, "east"}, new Object[] {10, "east"});
+        assertThat(((Map<?, ?>) result.get("data")).get("truncated")).isEqualTo(false);
+        q.put("filters", List.of(Map.of("field", "region", "operator", "EQ", "values", List.of("east' OR 1=1 --"))));
+        assertThat(rows(call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget)))
+                .isEmpty();
+        q.put("fields", List.of("missing"));
+        q.put("sorts", List.of());
+        assertThat(call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget)
+                        .get("code"))
+                .isEqualTo("dataset.fieldMissing");
+    }
+
     Map<?, ?> preview(String screen, String dataset, Map<String, Object> q) {
         Map<?, ?> widget = (Map<?, ?>) ((List<?>) draft(dataset, q, 0).get("widgets")).get(0);
         return call(HttpMethod.POST, "/screens/" + screen + "/draft/query", widget);

@@ -116,17 +116,13 @@ test('编辑者拖入维度与度量得到实际柱状图并保存配置', async
   await page.getByRole('combobox', { name: '柱状图数据集', exact: true }).press('ArrowDown')
   await page
     .getByRole('option', {
-      name: date
-        ? '日期销售明细（订单发生日期与含税销售金额）'
-        : '季度销售明细（区域与含税销售金额）',
+      name: '季度销售明细（区域与含税销售金额）',
       exact: true,
     })
     .click()
   await expect(
     page.getByRole('option', {
-      name: date
-        ? '日期销售明细（订单发生日期与含税销售金额）'
-        : '季度销售明细（区域与含税销售金额）',
+      name: '季度销售明细（区域与含税销售金额）',
       exact: true,
     }),
   ).not.toBeVisible()

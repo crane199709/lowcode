@@ -22,7 +22,7 @@ import { errorTip, jsonBody } from './data-source'
 import ScreenImage from './ScreenImage.vue'
 import ScreenWidgetContent from './ScreenWidgetContent.vue'
 import ScreenChartProperties from './ScreenChartProperties.vue'
-import { chartNames, emptyChart, type ChartConfig, type ChartType } from './widget-query'
+import { chartNames, emptyChart, type ChartConfig, type QueryWidgetType } from './widget-query'
 import { cloneDraft, emptyDraft, resolutions, type ScreenDraft, type ScreenWidget } from './screen'
 
 const route = useRoute()
@@ -186,12 +186,12 @@ function addText() {
   selectedId.value = widget.id
   commit()
 }
-function addComponent(type: 'TEXT' | 'IMAGE' | ChartType) {
+function addComponent(type: 'TEXT' | 'IMAGE' | QueryWidgetType) {
   if (type === 'TEXT') addText()
   else if (type === 'IMAGE') imageInput.value?.click()
   else addChart(type)
 }
-function addChart(type: ChartType) {
+function addChart(type: QueryWidgetType) {
   if (draft.value.widgets.length >= 200) {
     return
   }
@@ -210,7 +210,12 @@ function addChart(type: ChartType) {
   commit()
 }
 function chartChanged(config: ChartConfig) {
-  if (selected.value && ['BAR', 'LINE', 'STACKED_BAR', 'PIE'].includes(selected.value.type)) {
+  if (
+    selected.value &&
+    ['BAR', 'LINE', 'STACKED_BAR', 'PIE', 'DETAIL_TABLE', 'SUMMARY_TABLE', 'INDICATOR'].includes(
+      selected.value.type,
+    )
+  ) {
     selected.value.config = config
     commit()
   }
@@ -391,6 +396,9 @@ onBeforeUnmount(() => observer?.disconnect())
                   <el-dropdown-item command="LINE">折线图</el-dropdown-item>
                   <el-dropdown-item command="STACKED_BAR">堆叠柱状图</el-dropdown-item>
                   <el-dropdown-item command="PIE">饼图</el-dropdown-item>
+                  <el-dropdown-item command="DETAIL_TABLE">明细表</el-dropdown-item>
+                  <el-dropdown-item command="SUMMARY_TABLE">汇总表</el-dropdown-item>
+                  <el-dropdown-item command="INDICATOR">指标卡</el-dropdown-item>
                 </el-dropdown-menu></template
               >
             </el-dropdown>
@@ -657,7 +665,10 @@ onBeforeUnmount(() => observer?.disconnect())
                     selected.type === 'BAR' ||
                     selected.type === 'LINE' ||
                     selected.type === 'STACKED_BAR' ||
-                    selected.type === 'PIE'
+                    selected.type === 'PIE' ||
+                    selected.type === 'DETAIL_TABLE' ||
+                    selected.type === 'SUMMARY_TABLE' ||
+                    selected.type === 'INDICATOR'
                   "
                   :key="selected.id"
                   :config="selected.config"

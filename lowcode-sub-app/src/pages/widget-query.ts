@@ -10,10 +10,17 @@ export interface WidgetQuery {
     values: (string | number | boolean | null)[]
   }[]
   sorts: { column: number; direction: 'ASC' | 'DESC' }[]
+  mode?: 'AGGREGATE' | 'DETAIL'
+  fields?: string[]
   topN?: number | null
 }
 export type ChartType = 'BAR' | 'LINE' | 'STACKED_BAR' | 'PIE'
-export const chartNames: Record<ChartType, string> = {
+export type DataWidgetType = 'DETAIL_TABLE' | 'SUMMARY_TABLE' | 'INDICATOR'
+export type QueryWidgetType = ChartType | DataWidgetType
+export const chartNames: Record<QueryWidgetType, string> = {
+  DETAIL_TABLE: '明细表',
+  SUMMARY_TABLE: '汇总表',
+  INDICATOR: '指标卡',
   BAR: '基础柱状图',
   LINE: '基础折线图',
   STACKED_BAR: '堆叠柱状图',
@@ -24,6 +31,9 @@ export interface ChartConfig {
   query: WidgetQuery
   refreshSeconds: number
   donut?: boolean
+  title?: string
+  unit?: string
+  numberFormat?: 'AUTO' | 'INTEGER' | 'DECIMAL_2'
 }
 export interface BindingDataset {
   id: string
@@ -44,29 +54,48 @@ export const aggregations: Record<Aggregation, string> = {
   MAX: '最大',
   MIN: '最小',
 }
-export function emptyChart(type: ChartType = 'BAR'): ChartConfig {
+export function emptyChart(type: QueryWidgetType = 'BAR'): ChartConfig {
   return {
     ...(type === 'PIE' ? { donut: false } : {}),
+    ...(type === 'INDICATOR' ? { title: '指标卡', unit: '', numberFormat: 'AUTO' as const } : {}),
     datasetId: '',
-    query: { dimensions: [], measures: [], filters: [], sorts: [] },
+    query: {
+      dimensions: [],
+      measures: [],
+      filters: [],
+      sorts: [],
+      ...(type === 'DETAIL_TABLE' ? { mode: 'DETAIL' as const, fields: [] } : {}),
+    },
     refreshSeconds: 0,
   }
 }
 
-export function chartHint(type: ChartType) {
-  return type === 'PIE'
-    ? '需要 1 个维度和 1 个度量'
+export function chartHint(type: QueryWidgetType) {
+  return type === 'DETAIL_TABLE'
+    ? '选择需要显示的明细字段'
+    : type === 'INDICATOR'
+      ? '需要 1 个聚合度量'
+      : type === 'SUMMARY_TABLE'
+        ? '需要维度和聚合度量'
+        : type === 'PIE'
+          ? '需要 1 个维度和 1 个度量'
+          : type === 'STACKED_BAR'
+            ? '需要 2 个维度（类别、堆叠）和 1 个度量'
+            : type === 'LINE'
+              ? '需要 1 个维度和 1–16 个度量'
+              : '需要 1–8 个维度和 1–16 个度量'
+}
+export function dimensionLimit(type: QueryWidgetType) {
+  return type === 'INDICATOR' || type === 'DETAIL_TABLE'
+    ? 0
     : type === 'STACKED_BAR'
-      ? '需要 2 个维度（类别、堆叠）和 1 个度量'
-      : type === 'LINE'
-        ? '需要 1 个维度和 1–16 个度量'
-        : '需要 1–8 个维度和 1–16 个度量'
+      ? 2
+      : type === 'LINE' || type === 'PIE'
+        ? 1
+        : 8
 }
-export function dimensionLimit(type: ChartType) {
-  return type === 'STACKED_BAR' ? 2 : type === 'LINE' || type === 'PIE' ? 1 : 8
-}
-export function measureLimit(type: ChartType) {
-  return type === 'STACKED_BAR' || type === 'PIE' ? 1 : 16
+export function measureLimit(type: QueryWidgetType) {
+  return type === 'INDICATOR' || type === 'STACKED_BAR' || type === 'PIE' ? 1 : 16
 }
 export function chartReady(type: ChartType, config: ChartConfig) {
   const dimensions = config.query?.dimensions?.length ?? 0
@@ -78,4 +107,18 @@ export function chartReady(type: ChartType, config: ChartConfig) {
     measures >= 1 &&
     measures <= measureLimit(type)
   )
+}
+
+export function dataWidgetReady(type: DataWidgetType, config: ChartConfig) {
+  if (!config.datasetId) return false
+  if (type === 'DETAIL_TABLE')
+    return (
+      config.query.mode === 'DETAIL' &&
+      !!config.query.fields?.length &&
+      !config.query.dimensions.length &&
+      !config.query.measures.length
+    )
+  if (type === 'INDICATOR')
+    return !config.query.dimensions.length && config.query.measures.length === 1
+  return config.query.dimensions.length > 0 && config.query.measures.length > 0
 }

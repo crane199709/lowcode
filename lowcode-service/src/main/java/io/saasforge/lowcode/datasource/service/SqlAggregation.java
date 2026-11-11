@@ -21,6 +21,11 @@ final class SqlAggregation {
         List<Object> values = new ArrayList<>();
         List<String> selections = new ArrayList<>();
         List<String> groups = new ArrayList<>();
+        if (q.mode() == DatasetQueryService.Mode.DETAIL) {
+            for (int i = 0; i < q.fields().size(); i++) {
+                selections.add(identifier(type, q.fields().get(i)) + " AS f" + i);
+            }
+        }
         for (int i = 0; i < q.dimensions().size(); i++) {
             String expression = identifier(type, q.dimensions().get(i).field());
             var dimension = q.dimensions().get(i);
@@ -140,9 +145,12 @@ final class SqlAggregation {
             order(type, orders, alias(q, sort.column()), sort.direction());
             sorted.add(sort.column());
         }
-        for (int i = 0; i < q.dimensions().size(); i++) {
+        int tieColumns = q.mode() == DatasetQueryService.Mode.DETAIL
+                ? q.fields().size()
+                : q.dimensions().size();
+        for (int i = 0; i < tieColumns; i++) {
             if (!sorted.contains(i)) {
-                order(type, orders, "d" + i, DatasetQueryService.Direction.ASC);
+                order(type, orders, alias(q, i), DatasetQueryService.Direction.ASC);
             }
         }
         if (!orders.isEmpty()) {
@@ -160,6 +168,9 @@ final class SqlAggregation {
     }
 
     private static String alias(DatasetQueryService.Query q, int column) {
+        if (q.mode() == DatasetQueryService.Mode.DETAIL) {
+            return "f" + column;
+        }
         return column < q.dimensions().size()
                 ? "d" + column
                 : "m" + (column - q.dimensions().size());

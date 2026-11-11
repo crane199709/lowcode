@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,6 +58,13 @@ public class DatasetQueryService {
         Map<String, FieldResponse> fields = new HashMap<>();
         dataset.fields().forEach(field -> fields.put(field.name(), field));
         List<Column> columns = new ArrayList<>();
+        if (query.mode() == Mode.DETAIL) {
+            for (int i = 0; i < query.fields().size(); i++) {
+                var field = field(fields, query.fields().get(i));
+                columns.add(
+                        new Column("f" + i, field.displayName(), field.type().name()));
+            }
+        }
         for (int i = 0; i < query.dimensions().size(); i++) {
             var dimension = query.dimensions().get(i);
             var field = field(fields, dimension.field());
@@ -91,7 +99,14 @@ public class DatasetQueryService {
             }
             filters.add(new Filter(filter.field(), filter.operator(), values));
         }
-        var validated = new Query(query.dimensions(), query.measures(), filters, query.sorts(), query.topN());
+        var validated = new Query(
+                query.dimensions(),
+                query.measures(),
+                filters,
+                query.sorts(),
+                query.topN(),
+                query.mode(),
+                query.fields());
         var result = dataset.jsonPath() == null
                 ? sources.aggregate(dataset.dataSourceId(), dataset.sql(), validated, dataset.fields())
                 : ApiDatasetAggregator.aggregate(
@@ -117,11 +132,22 @@ public class DatasetQueryService {
                 || q.filters() == null
                 || q.sorts() == null
                 || q.dimensions().size() > 8
-                || q.measures().isEmpty()
                 || q.measures().size() > 16
                 || q.filters().size() > 20
                 || q.sorts().size() > 24
                 || (q.topN() != null && (q.topN() < 1 || q.topN() > 100000))) {
+            throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
+        }
+        if (q.mode() == Mode.DETAIL) {
+            if (!q.dimensions().isEmpty()
+                    || !q.measures().isEmpty()
+                    || q.fields().isEmpty()
+                    || q.fields().size() > 64
+                    || q.fields().stream().anyMatch(f -> f == null || f.isBlank())
+                    || new HashSet<>(q.fields()).size() != q.fields().size()) {
+                throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
+            }
+        } else if (q.measures().isEmpty() || !q.fields().isEmpty()) {
             throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
         }
         for (var d : q.dimensions()) {
@@ -151,7 +177,10 @@ public class DatasetQueryService {
             if (s == null
                     || s.direction() == null
                     || s.column() < 0
-                    || s.column() >= q.dimensions().size() + q.measures().size()) {
+                    || s.column()
+                            >= (q.mode() == Mode.DETAIL
+                                    ? q.fields().size()
+                                    : q.dimensions().size() + q.measures().size())) {
                 throw new ForgeException(DatasetErrorCode.QUERY_INVALID);
             }
         }
@@ -204,7 +233,32 @@ public class DatasetQueryService {
     }
 
     public record Query(
-            List<Dimension> dimensions, List<Measure> measures, List<Filter> filters, List<Sort> sorts, Integer topN) {}
+            List<Dimension> dimensions,
+            List<Measure> measures,
+            List<Filter> filters,
+            List<Sort> sorts,
+            Integer topN,
+            Mode mode,
+            List<String> fields) {
+        public Query {
+            mode = mode == null ? Mode.AGGREGATE : mode;
+            fields = fields == null ? List.of() : fields;
+        }
+
+        public Query(
+                List<Dimension> dimensions,
+                List<Measure> measures,
+                List<Filter> filters,
+                List<Sort> sorts,
+                Integer topN) {
+            this(dimensions, measures, filters, sorts, topN, Mode.AGGREGATE, List.of());
+        }
+    }
+
+    public enum Mode {
+        AGGREGATE,
+        DETAIL
+    }
 
     public record Dimension(String field, DateGrouping dateGrouping) {
         public Dimension(String field) {

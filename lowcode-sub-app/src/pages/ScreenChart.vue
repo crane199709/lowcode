@@ -1,36 +1,23 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useTenantClient } from '@crane199709/sdk'
 import { ElButton } from 'element-plus'
 import { init, use, type EChartsType } from 'echarts/core'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { SVGRenderer } from 'echarts/renderers'
-import {
-  chartHint,
-  chartNames,
-  chartReady,
-  type ChartConfig,
-  type WidgetData,
-  type ChartType,
-} from './widget-query'
+import { chartHint, chartNames, chartReady, type ChartConfig, type ChartType } from './widget-query'
 import type { ScreenWidget } from './screen'
-import { errorTip, jsonBody } from './data-source'
+import { useWidgetData } from './use-widget-data'
 use([BarChart, LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent, SVGRenderer])
 const props = defineProps<{
   widget: ScreenWidget & { type: ChartType; config: ChartConfig }
   queryBase: string
 }>()
-const client = useTenantClient()
 const surface = ref<HTMLElement>()
-const result = ref<WidgetData>()
-const message = ref('')
-const loading = ref(false)
 const ready = computed(() => chartReady(props.widget.type, props.widget.config))
 let chart: EChartsType | undefined
 let observer: ResizeObserver | undefined
-let timer: ReturnType<typeof setTimeout> | undefined
-let generation = 0
+const { result, message, loading, load } = useWidgetData(props, ready)
 function render() {
   if (!surface.value || !result.value) {
     return
@@ -98,67 +85,14 @@ function render() {
   )
   chart.resize()
 }
-async function load() {
-  const current = ++generation
-  clearTimeout(timer)
-  if (!ready.value) {
+watch(result, async () => {
+  if (!result.value) {
+    chart?.clear()
     return
   }
-  loading.value = true
-  try {
-    const data = await client.api<WidgetData>(
-      props.queryBase.endsWith('/draft')
-        ? `${props.queryBase}/query`
-        : `${props.queryBase}/widgets/${encodeURIComponent(props.widget.id)}/query`,
-      props.queryBase.endsWith('/draft') ? jsonBody('POST', props.widget) : undefined,
-    )
-    if (current !== generation) {
-      return
-    }
-    result.value = data
-    message.value = ''
-    await nextTick()
-    render()
-  } catch (cause) {
-    if (current !== generation) {
-      return
-    }
-    result.value = undefined
-    message.value = errorTip(cause, '组件取数失败，请重试').message
-    chart?.clear()
-  } finally {
-    if (current === generation) {
-      loading.value = false
-      const seconds = props.widget.config.refreshSeconds
-      if (!props.queryBase.endsWith('/draft') && seconds >= 10) {
-        timer = setTimeout(load, Math.min(seconds * 1000, 2147483647))
-      }
-    }
-  }
-}
-watch(
-  () =>
-    JSON.stringify([
-      props.queryBase,
-      props.widget.id,
-      props.widget.type,
-      props.widget.config.datasetId,
-      props.widget.config.query,
-      props.widget.config.refreshSeconds,
-    ]),
-  () => {
-    ++generation
-    clearTimeout(timer)
-    loading.value = false
-    result.value = undefined
-    message.value = ''
-    chart?.clear()
-    if (ready.value) {
-      timer = setTimeout(load, 150)
-    }
-  },
-  { immediate: true },
-)
+  await nextTick()
+  render()
+})
 watch(() => props.widget.config.donut, render)
 onMounted(() => {
   observer = new ResizeObserver(() => chart?.resize())
@@ -167,8 +101,6 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => {
-  ++generation
-  clearTimeout(timer)
   observer?.disconnect()
   chart?.dispose()
 })
