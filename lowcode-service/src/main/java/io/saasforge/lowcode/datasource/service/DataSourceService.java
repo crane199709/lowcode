@@ -10,6 +10,8 @@ import io.saasforge.lowcode.datasource.model.ApiSettings;
 import io.saasforge.lowcode.datasource.model.ColumnResponse;
 import io.saasforge.lowcode.datasource.model.ConnectionSettings;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
+import io.saasforge.lowcode.datasource.model.DatabaseSourceResponse;
+import io.saasforge.lowcode.datasource.model.SqlPreviewResponse;
 import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.sdk.core.api.ForgeException;
 import io.saasforge.sdk.web.PageQuery;
@@ -120,6 +122,29 @@ public class DataSourceService {
 
     public List<DataSource> list(PageQuery query) {
         return dataSourceMapper.selectPage(query.size(), query.offset());
+    }
+
+    public List<DatabaseSourceResponse> databaseSources(PageQuery query) {
+        return dataSourceMapper.selectDatabasePage(query.size(), query.offset()).stream()
+                .map(source -> new DatabaseSourceResponse(
+                        source.getId(), source.getName(), DataSourceType.valueOf(source.getType())))
+                .toList();
+    }
+
+    public long databaseSourceCount() {
+        return dataSourceMapper.selectCount(
+                new LambdaQueryWrapper<DataSource>().ne(DataSource::getType, DataSourceType.API.name()));
+    }
+
+    public SqlPreviewResponse previewSql(UUID id, String sql) {
+        DataSource saved = get(id);
+        DataSourceType type = DataSourceType.valueOf(saved.getType());
+        if (type == DataSourceType.API) {
+            throw new ForgeException(DatasetErrorCode.SOURCE_NOT_SUPPORTED);
+        }
+        SqlQueryGuard.check(sql, type);
+        ConnectionSettings settings = metadataSettings(saved, type);
+        return connector.preview(type, metadataAddress(settings), settings, sql);
     }
 
     public List<TableResponse> tables(UUID id) {

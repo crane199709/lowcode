@@ -18,4 +18,6 @@ public interface DataSourceMapper extends BaseMapper<DataSource> {
      * @return 当前页数据源
      */
     List<DataSource> selectPage(@Param("limit") int limit, @Param("offset") long offset);
+    /** 分页列出 SQL Dataset 可选的数据库 Data Source，只返回标识与名称，不暴露连接信息。 */
+    List<DataSource> selectDatabasePage(@Param("limit") int limit, @Param("offset") long offset);
 }

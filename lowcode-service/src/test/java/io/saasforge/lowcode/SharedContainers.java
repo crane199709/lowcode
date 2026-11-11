@@ -136,6 +136,15 @@ final class SharedContainers {
         return external;
     }
 
+    /** 准备可写账号下的只读查询探针，证明 READ ONLY 而非账号权限拦截写入。 */
+    static ExternalDatabase externalDataset() {
+        var external = externalPostgres();
+        var container = PostgresHolder.CONTAINER;
+        container.copyFileToContainer(MountableFile.forClasspathResource("dataset/postgresql.sql"), "/tmp/dataset.sql");
+        exec(container, "psql", "-U", "test", "-d", "forge", "-v", "ON_ERROR_STOP=1", "-f", "/tmp/dataset.sql");
+        return external;
+    }
+
     private static final String EXTERNAL_USER = "tenant_reader";
     // 同时满足 SQL Server 的密码复杂度要求
     private static final String EXTERNAL_PASSWORD = "Ext3rnal-Secr3t";

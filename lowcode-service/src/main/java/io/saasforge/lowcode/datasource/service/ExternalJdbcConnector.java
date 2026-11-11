@@ -1,8 +1,13 @@
 package io.saasforge.lowcode.datasource.service;
 
+import io.saasforge.lowcode.datasource.config.SqlDatasetProperties;
 import io.saasforge.lowcode.datasource.model.ColumnResponse;
 import io.saasforge.lowcode.datasource.model.ConnectionSettings;
 import io.saasforge.lowcode.datasource.model.DataSourceType;
+import io.saasforge.lowcode.datasource.model.FieldResponse;
+import io.saasforge.lowcode.datasource.model.FieldRole;
+import io.saasforge.lowcode.datasource.model.FieldType;
+import io.saasforge.lowcode.datasource.model.SqlPreviewResponse;
 import io.saasforge.lowcode.datasource.model.TableResponse;
 import io.saasforge.sdk.core.api.ForgeException;
 import java.net.Inet6Address;
@@ -13,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -41,6 +48,100 @@ class ExternalJdbcConnector {
     // 测试连接是交互操作，不能让请求线程长时间挂起
     private static final int CONNECT_TIMEOUT_SECONDS = 5;
     private static final int READ_TIMEOUT_SECONDS = 10;
+
+    private final SqlDatasetProperties sqlProperties;
+
+    ExternalJdbcConnector(SqlDatasetProperties sqlProperties) {
+        this.sqlProperties = sqlProperties;
+    }
+
+    SqlPreviewResponse preview(DataSourceType type, InetAddress address, ConnectionSettings settings, String sql) {
+        return withConnection(
+                type,
+                address,
+                settings,
+                connection -> {
+                    connection.setReadOnly(true);
+                    // PostgreSQL 只有事务内才会下发 READ ONLY；关闭自动提交也让预览结束时总是回滚。
+                    connection.setAutoCommit(false);
+                    try (var statement = connection.createStatement()) {
+                        statement.setQueryTimeout(sqlProperties.timeoutSeconds());
+                        statement.setMaxRows(sqlProperties.maxRows() + 1);
+                        if (!statement.execute(sql)) {
+                            throw new ForgeException(DatasetErrorCode.QUERY_FAILED);
+                        }
+                        try (var result = statement.getResultSet()) {
+                            var metadata = result.getMetaData();
+                            List<FieldResponse> fields = new ArrayList<>();
+                            Set<String> names = new HashSet<>();
+                            for (int i = 1; i <= metadata.getColumnCount(); i++) {
+                                String name = metadata.getColumnLabel(i);
+                                if (name == null || name.isBlank() || !names.add(name)) {
+                                    throw new ForgeException(DatasetErrorCode.FIELD_INVALID);
+                                }
+                                FieldType fieldType = fieldType(metadata.getColumnType(i));
+                                fields.add(new FieldResponse(
+                                        name,
+                                        name,
+                                        fieldType,
+                                        fieldType == FieldType.NUMBER ? FieldRole.MEASURE : FieldRole.DIMENSION,
+                                        fieldType == FieldType.DATE || fieldType == FieldType.DATETIME));
+                            }
+                            List<List<Object>> rows = new ArrayList<>();
+                            boolean truncated = false;
+                            while (result.next()) {
+                                if (rows.size() == sqlProperties.maxRows()) {
+                                    truncated = true;
+                                    break;
+                                }
+                                List<Object> row = new ArrayList<>();
+                                for (int i = 1; i <= fields.size(); i++) {
+                                    Object value = switch (fields.get(i - 1).type()) {
+                                        case NUMBER -> result.getBigDecimal(i);
+                                        case BOOLEAN -> result.getObject(i, Boolean.class);
+                                        default -> result.getString(i);
+                                    };
+                                    row.add(value);
+                                }
+                                rows.add(row);
+                            }
+                            return new SqlPreviewResponse(
+                                    List.copyOf(fields), rows, truncated, sqlProperties.maxRows());
+                        }
+                    } catch (SQLException e) {
+                        log.debug("External SQL failed with SQLState {} code {}", e.getSQLState(), e.getErrorCode(), e);
+                        // 不把外部数据库的错误正文（可能含主机、账号或 SQL）回传给用户。
+                        if (e instanceof SQLTimeoutException || "57014".equals(e.getSQLState())) {
+                            throw new ForgeException(DatasetErrorCode.QUERY_TIMEOUT);
+                        }
+                        throw new ForgeException(DatasetErrorCode.QUERY_FAILED);
+                    } finally {
+                        connection.rollback();
+                    }
+                },
+                sqlProperties.timeoutSeconds() + READ_TIMEOUT_SECONDS);
+    }
+
+    private static FieldType fieldType(int type) {
+        return switch (type) {
+            case Types.TINYINT,
+                    Types.SMALLINT,
+                    Types.INTEGER,
+                    Types.BIGINT,
+                    Types.NUMERIC,
+                    Types.DECIMAL,
+                    Types.FLOAT,
+                    Types.REAL,
+                    Types.DOUBLE -> FieldType.NUMBER;
+            case Types.DATE -> FieldType.DATE;
+            case Types.TIMESTAMP, Types.TIMESTAMP_WITH_TIMEZONE, Types.TIME, Types.TIME_WITH_TIMEZONE ->
+                FieldType.DATETIME;
+            case Types.BOOLEAN, Types.BIT -> FieldType.BOOLEAN;
+            case Types.CHAR, Types.VARCHAR, Types.LONGVARCHAR, Types.NCHAR, Types.NVARCHAR, Types.LONGNVARCHAR ->
+                FieldType.STRING;
+            default -> FieldType.OTHER;
+        };
+    }
 
     /**
      * 连接到已通过禁止网段检查的地址，成功即关闭。
@@ -121,6 +222,15 @@ class ExternalJdbcConnector {
 
     private <T> T withConnection(
             DataSourceType type, InetAddress address, ConnectionSettings settings, JdbcOperation<T> operation) {
+        return withConnection(type, address, settings, operation, READ_TIMEOUT_SECONDS);
+    }
+
+    private <T> T withConnection(
+            DataSourceType type,
+            InetAddress address,
+            ConnectionSettings settings,
+            JdbcOperation<T> operation,
+            int readTimeoutSeconds) {
         var properties = new Properties();
         properties.putAll(settings.params());
         properties.setProperty("user", settings.username());
@@ -132,6 +242,13 @@ class ExternalJdbcConnector {
             case ORACLE -> oracle(address, settings, properties);
             case API -> throw new IllegalArgumentException("API data sources do not use JDBC");
         };
+        // SQL 的读取预算要长于查询超时，避免原有 10 秒连接探测预算提前中断 30 秒查询。
+        switch (type) {
+            case POSTGRESQL -> properties.setProperty("socketTimeout", String.valueOf(readTimeoutSeconds));
+            case MYSQL, SQLSERVER -> properties.setProperty("socketTimeout", String.valueOf(readTimeoutSeconds * 1000));
+            case ORACLE -> properties.setProperty("oracle.jdbc.ReadTimeout", String.valueOf(readTimeoutSeconds * 1000));
+            case API -> throw new IllegalArgumentException("API data sources do not use JDBC");
+        }
         try (Connection connection = type == DataSourceType.ORACLE
                 ? oracleConnection(url, address, properties)
                 : DriverManager.getConnection(url, properties)) {
