@@ -137,6 +137,8 @@ pnpm start:lowcode
 
 ## 验证
 
+GitHub Actions 在 `main` 推送、PR 和手动触发时执行后端验证及前端构建、交互回归；snapshot 依赖获取、报告下载和截图比对边界见 [持续集成说明](docs/ci.md)。
+
 在 `lowcode-service/` 中执行：
 
 ```bash

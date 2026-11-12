@@ -1,0 +1,69 @@
+name: Frontend quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: lowcode-sub-app
+    steps:
+      - name: Check out lowcode
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.4.2
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: lowcode-sub-app/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check frontend formatting
+        run: pnpm format:check
+      - name: Check documentation and workflow formatting
+        run: pnpm exec prettier --check ../README.md ../README-en.md ../docs/ci.md ../.github/workflows/*.yml
+      - name: Build and check isolation, styles, and types
+        run: pnpm build
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      # Committed screenshot baselines were generated on macOS. Keep interaction assertions on Linux.
+      - name: Run browser interaction tests
+        run: pnpm test:visual --forbid-only --ignore-snapshots --trace=retain-on-failure --reporter=line,html
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v7
+        with:
+          name: lowcode-sub-app
+          path: lowcode-sub-app/dist/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload failure reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-test-reports
+          path: |
+            lowcode-sub-app/playwright-report/
+            lowcode-sub-app/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

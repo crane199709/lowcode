@@ -137,6 +137,8 @@ Members can then access data source, dataset, and screen pages under `/apps/lowc
 
 ## Verification
 
+GitHub Actions runs backend verification, frontend builds, and interaction tests on pushes to `main`, pull requests, and manual dispatch. See the [CI guide](docs/ci.md) for snapshot dependencies, reports, and the limits of screenshot checks.
+
 In `lowcode-service/`:
 
 ```bash

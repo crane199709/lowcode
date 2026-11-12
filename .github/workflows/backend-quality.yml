@@ -1,0 +1,76 @@
+name: Backend quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      oracle:
+        description: Include the slower Oracle database tests
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out lowcode
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # The current SDK is an unpublished snapshot. Build a matching, fixed source revision.
+      - name: Check out SaaS Forge SDK source
+        uses: actions/checkout@v7
+        with:
+          repository: crane199709/saas-forge
+          ref: 3f5ea01d10e18a907914ff82a9f71b3082fe05bf
+          path: .ci/saas-forge
+          persist-credentials: false
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: |
+            lowcode-service/pom.xml
+            .ci/saas-forge/backend/**/pom.xml
+            .github/workflows/backend-quality.yml
+      - name: Install required Forge SDK artifacts
+        working-directory: .ci/saas-forge/backend
+        run: >-
+          ./mvnw --batch-mode install -DskipTests
+          -pl :forge-sdk-storage,:forge-sdk-ops,:forge-sdk-abac,:forge-sdk-provisioning,:forge-sdk-audit,:forge-sdk-openapi,:forge-sdk-manifest,:forge-sdk-web,:forge-architecture
+          -am
+      - name: Check Docker
+        run: docker info
+      - name: Verify lowcode service
+        working-directory: lowcode-service
+        env:
+          RUN_ORACLE: ${{ inputs.oracle || false }}
+        run: |
+          if [ "$RUN_ORACLE" = true ]; then
+            ./mvnw --batch-mode verify -DforkCount=1 -Pslow-dialects
+          else
+            ./mvnw --batch-mode verify -DforkCount=1
+          fi
+      - name: Upload failure reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: |
+            lowcode-service/target/surefire-reports/
+            lowcode-service/target/failsafe-reports/
+          if-no-files-found: ignore
+          retention-days: 7
