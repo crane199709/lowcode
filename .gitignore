@@ -16,6 +16,8 @@ playwright-report/
 # 编辑器与系统文件；共享本项目的 VS Code 启动和编辑器配置
 .DS_Store
 .idea/
-/.vscode/*
-!/.vscode/launch.json
-!/.vscode/settings.json
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
