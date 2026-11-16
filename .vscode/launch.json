@@ -1,0 +1,47 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "后端：LowcodeApplication",
+      "type": "java",
+      "request": "launch",
+      "mainClass": "io.saasforge.lowcode.LowcodeApplication",
+      "projectName": "lowcode-service",
+      "cwd": "${workspaceFolder}/lowcode-service",
+      "envFile": "${workspaceFolder}/lowcode-service/.env.local",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "前端：Vite + Chrome",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev", "--host", "localhost", "--port", "5176", "--strictPort"],
+      "cwd": "${workspaceFolder}/lowcode-sub-app",
+      "console": "integratedTerminal",
+      "outputCapture": "std",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "serverReadyAction": {
+        "pattern": "(https?://localhost:5176/)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome",
+        "webRoot": "${workspaceFolder}/lowcode-sub-app",
+        "killOnServerStop": true
+      }
+    },
+    {
+      "name": "前端：Chrome（已有开发服务器）",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5176",
+      "webRoot": "${workspaceFolder}/lowcode-sub-app"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "全栈：后端 + 前端",
+      "configurations": ["后端：LowcodeApplication", "前端：Vite + Chrome"],
+      "stopAll": true
+    }
+  ]
+}

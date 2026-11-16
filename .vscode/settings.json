@@ -1,0 +1,41 @@
+{
+  "files.encoding": "utf8",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "[vue][typescript][javascript][json][jsonc][css][html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[java]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "never"
+    }
+  },
+  "[xml]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": false
+  },
+  "prettier.prettierPath": "lowcode-sub-app/node_modules/prettier",
+  "prettier.configPath": "lowcode-sub-app/.prettierrc.json",
+  "prettier.requireConfig": true,
+  "typescript.tsdk": "lowcode-sub-app/node_modules/typescript/lib",
+  "npm.packageManager": "pnpm",
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "maven.executable.preferMavenWrapper": true,
+  "files.exclude": {
+    "**/target": true,
+    "**/dist": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/target": true,
+    "**/dist": true,
+    "**/test-results": true,
+    "**/playwright-report": true
+  }
+}

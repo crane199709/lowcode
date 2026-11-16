@@ -1,8 +1,21 @@
+# 构建产物与依赖
 target/
 node_modules/
 dist/
+
+# 测试产物
 test-results/
 playwright-report/
+
+# 本地环境配置与运行日志；环境变量模板保留在版本库中
+.env
+.env.*
+!.env.example
+*.log
+
+# 编辑器与系统文件；共享本项目的 VS Code 启动和编辑器配置
 .DS_Store
 .idea/
-/lowcode-service/.env.local
+/.vscode/*
+!/.vscode/launch.json
+!/.vscode/settings.json
