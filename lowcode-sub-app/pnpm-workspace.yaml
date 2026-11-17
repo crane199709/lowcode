@@ -1,4 +1,4 @@
-# 临时：正式版本未发布，使用与当前 Shell 同版的平台源码 snapshot tarball（平台反馈 01）。
+# 临时：消费固定候选 54115992 的实际 pack 制品，来源与摘要见 docs/platform-upgrade.md。
 # 平台发布新版本后删除本文件的 overrides。
 overrides:
   '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz

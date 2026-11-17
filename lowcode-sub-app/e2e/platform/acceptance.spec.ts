@@ -47,7 +47,7 @@ async function actor(browser: Browser): Promise<Actor> {
   })
   // 只观察真实 PKCE 交换所得 Token；不写入 Shell 会话存储。
   page.on('response', async (response) => {
-    if (new URL(response.url()).pathname === '/demo/context' && response.status() === 403)
+    if (new URL(response.url()).pathname === '/api/demo/context' && response.status() === 403)
       demoBaseline = true
     if (response.url() === 'http://127.0.0.1:15176/remoteEntry.js') remoteStatus = response.status()
     if (
@@ -88,6 +88,19 @@ async function login(user: Actor, account: string, operator = false) {
   }
   await expect.poll(user.token).not.toBe('')
   await expect(page).toHaveTitle(operator ? 'SaaS Forge 平台控制台' : 'SaaS Forge 租户端')
+}
+async function navigateLowcode(user: Actor, menu: 'datasources' | 'datasets' | 'screens') {
+  const link = user.page.getByTestId(`menu-lowcode.${menu}`)
+  // 先确认已授权的菜单真实存在，再按可访问状态展开；无权限与缺菜单仍直接失败。
+  await expect(link).toHaveCount(1)
+  const group = user.page.getByTestId('menu-group-lowcode')
+  await expect(group).toBeVisible()
+  await expect(group).toHaveAttribute('aria-expanded', /^(true|false)$/)
+  if ((await group.getAttribute('aria-expanded')) === 'false') {
+    await group.locator('.el-sub-menu__title').click()
+  }
+  await expect(link).toBeVisible()
+  await link.click()
 }
 async function api(user: Actor, path: string, method = 'GET', data?: unknown) {
   const response = await user.page.request.fetch('http://127.0.0.1:18000' + path, {
@@ -146,6 +159,7 @@ async function capture(page: Page, name: string) {
   await expect(page.getByText('SaaS Forge', { exact: true }).filter({ visible: true })).toHaveCount(
     1,
   )
+  await expect(page.locator('.el-loading-mask:visible')).toHaveCount(0)
   await page.screenshot({
     path: resolve(run, name + '.png'),
     fullPage: false,
@@ -193,7 +207,7 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
     for (const menu of ['datasources', 'datasets', 'screens'])
       await op.getByTestId('menu-lowcode.' + menu).check()
     const planResponse = op.waitForResponse(
-      (r) => new URL(r.url()).pathname === '/platform/plans' && r.request().method() === 'POST',
+      (r) => new URL(r.url()).pathname === '/api/platform/plans' && r.request().method() === 'POST',
     )
     await op.getByRole('dialog').locator('button[type="submit"]').click()
     const plan = (await (await planResponse).json()).data
@@ -205,7 +219,8 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
     await op.locator('#tenant-admin-contact').fill('owner@lowcode-e2e.test')
     await select(op, op.getByTestId('tenant-plan'), planName)
     const tenantResponse = op.waitForResponse(
-      (r) => new URL(r.url()).pathname === '/platform/tenants' && r.request().method() === 'POST',
+      (r) =>
+        new URL(r.url()).pathname === '/api/platform/tenants' && r.request().method() === 'POST',
     )
     await op.getByRole('dialog').locator('button[type="submit"]').click()
     const tenant = (await (await tenantResponse).json()).data.tenant
@@ -271,8 +286,7 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
     }
     console.log('stage: designer business UI')
     const page = designer.page
-    await expect(page.getByTestId('menu-lowcode.datasources')).toBeVisible()
-    await page.getByTestId('menu-lowcode.datasources').click()
+    await navigateLowcode(designer, 'datasources')
     await expect.poll(designer.remoteStatus).toBe(200)
     await expect(page.getByRole('heading', { name: '数据源', exact: true })).toBeVisible()
     await page.getByRole('button', { name: '新增', exact: true }).click()
@@ -290,12 +304,13 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
     await expect(sourceForm.getByText('连接成功', { exact: true })).toBeVisible()
     const sourceResponse = page.waitForResponse(
       (r) =>
-        new URL(r.url()).pathname === '/lowcode/data-sources' && r.request().method() === 'POST',
+        new URL(r.url()).pathname === '/api/lowcode/data-sources' &&
+        r.request().method() === 'POST',
     )
     await sourceForm.getByRole('button', { name: '保存', exact: true }).click()
     const source = (await (await sourceResponse).json()).data
     await expect(sourceForm).not.toBeVisible()
-    await page.getByTestId('menu-lowcode.datasets').click()
+    await navigateLowcode(designer, 'datasets')
     await page.getByRole('button', { name: '新增', exact: true }).click()
     const datasetForm = page.getByRole('dialog')
     await datasetForm.getByLabel('名称', { exact: true }).fill('销售验收 Dataset')
@@ -310,16 +325,18 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
     await datasetForm.getByLabel('region 显示名').fill('区域')
     await datasetForm.getByLabel('amount 显示名').fill('销售金额')
     const datasetResponse = page.waitForResponse(
-      (r) => new URL(r.url()).pathname === '/lowcode/datasets' && r.request().method() === 'POST',
+      (r) =>
+        new URL(r.url()).pathname === '/api/lowcode/datasets' && r.request().method() === 'POST',
     )
     await datasetForm.getByRole('button', { name: '保存', exact: true }).click()
     const dataset = (await (await datasetResponse).json()).data
     await expect(datasetForm).not.toBeVisible()
-    await page.getByTestId('menu-lowcode.screens').click()
+    await navigateLowcode(designer, 'screens')
     await page.getByRole('button', { name: '新增', exact: true }).click()
     await page.getByRole('dialog').getByLabel('名称', { exact: true }).fill('真实销售验收大屏')
     const screenResponse = page.waitForResponse(
-      (r) => new URL(r.url()).pathname === '/lowcode/screens' && r.request().method() === 'POST',
+      (r) =>
+        new URL(r.url()).pathname === '/api/lowcode/screens' && r.request().method() === 'POST',
     )
     await page.getByRole('button', { name: '创建并编辑', exact: true }).click()
     const screen = (await (await screenResponse).json()).data
@@ -351,11 +368,11 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
     await page.getByRole('button', { name: '保存草稿', exact: true }).click()
     await expect(page.getByText('草稿已保存', { exact: true })).toBeVisible()
     await capture(page, 'designer-real-query-image')
-    await page.getByTestId('menu-lowcode.screens').click()
+    await navigateLowcode(designer, 'screens')
     await page.getByRole('button', { name: '发布', exact: true }).click()
     const publishResponse = page.waitForResponse(
       (response) =>
-        new URL(response.url()).pathname === `/lowcode/screens/${screen.id}/publish` &&
+        new URL(response.url()).pathname === `/api/lowcode/screens/${screen.id}/publish` &&
         response.request().method() === 'POST',
     )
     await page.getByRole('dialog').getByRole('button', { name: '发布', exact: true }).click()
@@ -383,7 +400,7 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
         !r.url().includes('/draft/') &&
         r.url().endsWith('/download'),
     )
-    await viewer.page.getByTestId('menu-lowcode.screens').click()
+    await navigateLowcode(viewer, 'screens')
     await viewer.page.getByRole('button', { name: '播放', exact: true }).click()
     await expect(viewer.page.getByRole('region', { name: '已发布大屏' })).toBeVisible()
     await expect(viewer.page.getByRole('img', { name: '基础柱状图' })).toContainText('华南')
@@ -438,7 +455,7 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
           })
         ).status(),
       ).toBe(404)
-    await outside.page.getByTestId('menu-lowcode.screens').click()
+    await navigateLowcode(outside, 'screens')
     await expect(outside.page.getByText('暂无大屏')).toBeVisible()
     await capture(outside.page, 'scope-outside-empty')
     // 删除审计使用无 Dataset 引用的独立 Data Source。
@@ -544,7 +561,7 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
             !(
               user.demoBaseline() &&
               e.startsWith('Failed to load resource: the server responded with a status of 403') &&
-              e.endsWith('[/demo/context]')
+              e.endsWith('[/api/demo/context]')
             ),
         ),
       ).toEqual([])
@@ -557,8 +574,11 @@ test('Operator 开放应用，普通设计者创建并发布，查看者与范�
           dataSourceId: source.id,
           datasetId: dataset.id,
           queryRows: query.rows,
-          knownPlatformBaseline:
-            '08: Shell HomePage /demo/context 403 (exact URL and actual response observed)',
+          knownPlatformBaseline: [owner, designer, viewer, forbidden, outside].some((user) =>
+            user.demoBaseline(),
+          )
+            ? '08: Shell HomePage /api/demo/context 403 (exact URL and actual response observed)'
+            : null,
           checks: [
             'realOperatorUI',
             'realTenantShell',

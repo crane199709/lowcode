@@ -63,7 +63,7 @@ async function mock(page: Page, definition = draft) {
   const queries: unknown[] = [],
     saves: unknown[] = []
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/screens'),
+    (url) => url.pathname.startsWith('/api/lowcode/screens'),
     async (route) => {
       const path = new URL(route.request().url()).pathname
       let data: unknown = definition

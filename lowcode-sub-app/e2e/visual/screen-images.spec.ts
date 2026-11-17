@@ -10,7 +10,7 @@ async function mockImages(page: Page) {
   let draft = { designWidth: 1920, designHeight: 1080, backgroundColor: '#101827', widgets: [] }
   let sequence = 0
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/screens'),
+    (url) => url.pathname.startsWith('/api/lowcode/screens'),
     async (route) => {
       const path = new URL(route.request().url()).pathname
       const method = route.request().method()

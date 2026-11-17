@@ -11,7 +11,7 @@ for (const [label, width, height] of viewports) {
     for (const [path, title, empty] of pages) {
       test(`${title}空列表`, async ({ page }) => {
         await page.route(
-          (url) => url.pathname === '/lowcode/screens',
+          (url) => url.pathname === '/api/lowcode/screens',
           (route) =>
             route.fulfill({
               json: {

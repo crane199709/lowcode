@@ -4,7 +4,25 @@
 
 基于 SaaS Forge 平台开发 Sub-App（挂在平台主应用中的业务前端）时，新增或调整页面必须遵守的规则。本文随脚手架复制进生成的工程，平台升级改动规则时以 CHANGELOG 为准重新复制。
 
-页面组件（`PageHeader`、`PageToolbar`、`ListPage`、`overlaySize`、`formatDateTime`）与 `--forge-*` 样式 token 由平台的 `@crane199709/ui` 提供；页面都落在主应用布局提供的同一块内容面上。
+页面组件（`PageHeader`、`PageToolbar`、`ListPage`、`EmptyState`、`overlaySize`、`formatDateTime`）与 `--forge-*` 样式 token 由平台的 `@crane199709/ui` 提供；页面都落在主应用布局提供的同一块内容面上。
+
+## 接口入口
+
+业务请求经共享 SDK 的 `client.api()` / `client.page()`，源码仍使用网关路径（如 `/orders/orders`）；SDK 强制添加 `/api`，Shell 剥离入口段后转发网关。开发 Shell、生产 Shell 与独立宿主固定代理 `/api` 和 `/iam`，新增服务不追加代理配置；Sub-App 配置不再接受 `apiPrefixes`。登录、OAuth2 回调与 Refresh 保持 `/iam` 原路径及 Cookie 语义。Shell、SDK 与 sub-app-kit 须配套升级，跨源业务路径仍拒绝。
+
+后端服务统一通过自己的 `FORGE_OPS_TOKEN`、`FORGE_MANIFEST_TOKEN` 配置凭证，Platform 的运维映射集中维护。Sub-App 继续使用 Shell 提供的用户会话；服务端凭证不进入 Vite 环境变量、浏览器配置或联邦产物。
+
+配套 Business Service 以 `forge-dependencies` 为父 POM，继承构建期中间件依赖门禁，通过受支持的后端 starter 接入中间件；Sub-App 通过上述 HTTP 入口使用这些能力。
+
+配套 Java 服务的 `if`、`else`、`for`、`while`、`do-while` 语句体必须加大括号，由后端 `./mvnw validate` 中的 Checkstyle `NeedBraces` 检查生产与测试代码。
+
+## 权限动作
+
+页面与按钮使用配套 Business Service Manifest 声明的完整权限码。AI 使用、配置发布与回滚分别使用 `use`、`publish`、`rollback` 动作；读取与草稿修改沿用 `read`、`update`。这些动作分别授权，页面根据 Shell 下发的实际权限展示入口；Sub-App 编码及权限仍受 Plan Feature Pack 限制。
+
+## 敏感字段展示
+
+敏感字段的路径、分级与默认规则由 Business Service 的 Resource Manifest 登记。列表、详情与导出消费服务端统一脱敏后的值，页面不重算掩码；确需查看原文时调用业务服务单独授权并审计的专用操作，页面权限与数据分级不能直接让服务返回原文。 规则选择与预览经 IAM 数据安全接口执行，租户只能从平台规则中选择；样例只用于本次预览，失败结果不得回显原样例。脱敏运行时的 IAM 地址与 Service Credential 只配置在后端，不进入 Sub-App 环境变量或浏览器存储。导出返回任务后按状态轮询，字段规则缺失、执行失败或 L4 禁止导出时任务失败且没有结果文件，页面按安全错误文案展示，不回退生成明文文件。
 
 ## 改动页面的流程
 
@@ -55,13 +73,41 @@
 - **确认**不可逆或影响他人的操作用 `el-dialog` 说明影响，可恢复的操作不打断。
 - **按钮层级**：每个区域一个实心主按钮，其余用默认或 `plain`，行内操作用 `link`。视图切换用 `plain` 的 `el-button-group`。
 
+## 图标
+
+侧边菜单的图标由 Resource Manifest 的菜单节点 `icon` 声明，Shell 从 `@crane199709/ui` 的 `resolveMenuIcon` 白名单解析后渲染，Sub-App 前端不写图标代码。白名单是唯一来源，可用名字：
+
+`avatar`、`bell`、`collection`、`document`、`folder`、`grid`、`guide`、`home`、`key`、`lock`、`menu`、`office-building`、`price-tag`、`search`、`setting`、`tickets`、`timer`、`user`、`warning`
+
+名字写 kebab-case 或 PascalCase 均可（`office-building` 与 `OfficeBuilding` 等价），大小写、下划线与空格不敏感。图标名缺失或不在白名单时不报错，回退到默认的菜单图标；拼错只影响该菜单项的外观，不会让菜单消失。
+
+## 空状态
+
+空数据、无结果、加载失败是三种不同状态，不要用同一句灰色占位糊过去：
+
+| 状态     | 什么时候出现                                       | 怎么写                                                                              |
+| -------- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 空数据   | 这里本来就可以没有数据，如新租户还没有待办         | 说明「还没有什么」，并给出创建或前往列表的主操作                                    |
+| 无结果   | 有数据，但当前筛选或关键词没有命中                 | 说明「没有符合条件的结果」，提示调整或清空筛选；不要引导创建                        |
+| 加载失败 | 请求失败，结果未知，不能当成空数据                 | 用 `ErrorAlert` 展示原因与追踪号并提供重试，不要渲染空状态                          |
+
+空数据与无结果统一用 `EmptyState`：可选图标、必填标题、可选描述，默认插槽放一个主操作。
+
+```vue
+<EmptyState icon="tickets" title="暂无待办">
+  <RouterLink to="/notifications?tab=todos">查看全部待办</RouterLink>
+</EmptyState>
+```
+
+图标名取上一节的图标白名单，没有合适图标时省略 `icon`；标题一句话说明现状，描述只写标题放不下的原因或下一步。`ListPage` 的 `emptyText` 已在内部渲染 `EmptyState`，用 `ListPage` 时不必另写空态；直接用 `el-table` 的页面在自己的 `empty` 插槽里放 `EmptyState`。不要按场景另建空状态变体组件。
+
 ## 交互规则
 
 - **新增和编辑走按钮**：列表上方放“新增”，点击后在弹窗或抽屉里填写。列表行保持只读，行内操作只放入口；逐行即改即生效的设置表（如参数）除外。
 - **层级数据用树形表格**：部门这类有上下级的数据保留层级，不平铺。
 - **危险操作不常驻**：不可逆或影响账号归属的操作放进专门的“危险操作”分区，不进顶栏，也不和常用操作相邻；执行前用确认弹窗说明后果，文案避免和常用操作同词。
 - **内容按集合展示**：同类记录用表格，正文放详情；接收方阅读的消息流（如通知中心）用单行消息列表：未读标记、标题、摘要、时间、操作，点击整行展开全文。
-- **单一查询页**：输入框和按钮同一行放顶部，未查询时用 `el-empty` 占位。
+- **单一查询页**：输入框和按钮同一行放顶部，未查询时用 `EmptyState` 说明要查什么。
 
 ## 页面上的说明文字
 
@@ -80,6 +126,30 @@
 
 - 间距的节奏：同组元素 `--forge-space-2`，控件组之间 `--forge-space-3`，区块之间 `--forge-space-4`。
 - 文字颜色用 Element Plus 的 `--el-text-color-*`，主内容 regular，辅助说明 secondary，只有区块标题加粗。
+
+### 统一浅色主题
+
+Shell 与独立开发宿主从 `@crane199709/ui` 的 `applyTheme()` 取得统一默认主题，并载入 `@crane199709/ui/theme.css` 的共享组件样式。Sub-App 只读 Theme Token，不调用 `applyTheme`、不写文档根节点，也不复制独立色板或重定义平台全局主题。
+
+平台默认品牌主色为靛蓝 `#4F46E5`，页面底色为 Slate `#F8FAFC`，内容面为 `#FFFFFF`。主色用于主要按钮、导航选中、链接与焦点；标题、正文、次级文字分别映射 Element Plus 的 primary / regular / secondary text（`#0F172A` / `#334155` / `#64748B`），边框、分隔线与浅填充使用同一 Slate 色阶（`#CBD5E1` / `#E2E8F0` / `#F1F5F9`）。成功、警告、危险沿用组件库语义色。
+
+主色 `light-*` 仍为混白派生色。实心主按钮悬停使用主色混黑 10%，按下使用 `dark-2`（混黑 20%），三个状态的白字对比度至少 4.5:1；plain、link、禁用与焦点保持各自状态语义。该约定只交付统一浅色主题，不提供产品切色或租户自定义主题。
+
+Theme Token 保留现有名称与 primitive / semantic / component 三层归属；布局尺寸、间距、字号、圆角等档位取值保持兼容。平台默认配色可以在 CHANGELOG 说明并完成视觉验收后统一演进。宿主拥有配色，Sub-App 使用 Element Plus 语义色，不另建 `--forge-color-*` 体系；既有 `--forge-color-primary` 与 `--forge-color-page` 名称继续保留。
+
+升级仓库外工程时，分别验证两种运行方式：
+
+1. 已部署的 Sub-App 读取 Shell 当前主题；升级 Shell 后，检查页面的按钮、文字和中性色是否跟随宿主。
+2. 独立开发宿主读取配套 UI 版本的默认主题。将 SDK、UI 与 sub-app-kit 对齐到配套 Shell 的同一平台版本，共享依赖保留对应精确版本；执行 `pnpm install`、`pnpm build`，再以 `pnpm dev` 验证开发宿主。
+3. 用同版本 kit 生成临时工程，从中复制本规范并合入 `AGENTS.md` 的新说明，保留现有业务代码。页面写死的颜色需自行改为现有 token；静态 favicon 的品牌主色随平台默认色同步。不自动重生成或发布已有工程。
+
+### 密度
+
+表格行高固定 **40px**、正文 **14px**：单元格上下内边距各 `--forge-space-2`（8px × 2），正文行高 23px，加 1px 分隔线。密度只从行高和列宽来，不缩小字号。
+
+- 行高由 Shell 与开发宿主统一写入 `el-table`，页面不再逐表设置行高，也不使用 Element Plus 的其他尺寸档位。
+- 行内状态标签用 `size="small"`。默认尺寸的标签高 24px，会把行撑到 41px，与固定行高不一致。
+- 长文本列用 `min-width` 加 `show-overflow-tooltip`，操作列 `fixed="right"` 且宽度容得下全部按钮同行；不靠加大行高解决折行。只有导入错误报告这类以通读全文为目的的表格允许换行。
 
 ## 代码格式
 

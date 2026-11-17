@@ -18,11 +18,11 @@ const dataset = {
 const manage = ['dataset:view', 'dataset:manage']
 async function mock(page: Page, items = [dataset]) {
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/datasets'),
+    (url) => url.pathname.startsWith('/api/lowcode/datasets'),
     async (route) => {
       const path = new URL(route.request().url()).pathname
       const method = route.request().method()
-      if (path === '/lowcode/datasets/sources') {
+      if (path === '/api/lowcode/datasets/sources') {
         await route.fulfill({
           json: {
             code: 'ok',
@@ -35,7 +35,7 @@ async function mock(page: Page, items = [dataset]) {
         await route.fulfill({
           json: { code: 'ok', httpStatus: 200, data: { references: [], hiddenReferences: false } },
         })
-      } else if (path === '/lowcode/datasets/preview') {
+      } else if (path === '/api/lowcode/datasets/preview') {
         await route.fulfill({
           json: {
             code: 'ok',
@@ -51,7 +51,7 @@ async function mock(page: Page, items = [dataset]) {
             },
           },
         })
-      } else if (method === 'GET' && path === '/lowcode/datasets') {
+      } else if (method === 'GET' && path === '/api/lowcode/datasets') {
         await route.fulfill({
           json: {
             code: 'ok',
@@ -149,7 +149,8 @@ for (const [label, width, height] of viewports) {
         .fill('SELECT region, amount FROM sales')
       const created = page.waitForRequest(
         (request) =>
-          request.method() === 'POST' && new URL(request.url()).pathname === '/lowcode/datasets',
+          request.method() === 'POST' &&
+          new URL(request.url()).pathname === '/api/lowcode/datasets',
       )
       await drawer.getByRole('button', { name: '保存', exact: true }).click()
       expect((await created).postDataJSON()).toMatchObject({
@@ -161,12 +162,12 @@ for (const [label, width, height] of viewports) {
       const removed = page.waitForRequest((request) => request.method() === 'DELETE')
       await page.getByRole('button', { name: '删除', exact: true }).click()
       await page.getByRole('dialog').getByRole('button', { name: '删除', exact: true }).click()
-      expect(new URL((await removed).url()).pathname).toBe(`/lowcode/datasets/${dataset.id}`)
+      expect(new URL((await removed).url()).pathname).toBe(`/api/lowcode/datasets/${dataset.id}`)
     })
     test('预览失败显示错误并可修改 SQL 重试', async ({ page }) => {
       await mock(page)
       await page.route(
-        (url) => url.pathname === '/lowcode/datasets/preview',
+        (url) => url.pathname === '/api/lowcode/datasets/preview',
         (route) =>
           route.fulfill({
             status: 422,
@@ -199,7 +200,7 @@ for (const [label, width, height] of viewports) {
         started = resolve
       })
       await page.route(
-        (url) => url.pathname === '/lowcode/datasets/preview',
+        (url) => url.pathname === '/api/lowcode/datasets/preview',
         async (route) => {
           started()
           await held

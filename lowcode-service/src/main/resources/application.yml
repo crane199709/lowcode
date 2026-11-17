@@ -51,6 +51,10 @@ forge:
     # IAM 内部地址与本服务专属上报令牌：接入清单 Manifest 步骤
     iam-uri: ${FORGE_IAM_URI}
     token: ${FORGE_MANIFEST_TOKEN}
+  scheduling:
+    # Storage 的租户清理任务使用本服务已有的 Service Credential。
+    iam-uri: ${forge.manifest.iam-uri}
+    token: ${forge.manifest.token}
 lowcode:
   datasource:
     # 禁止租户数据源连接的网段（逗号分隔的 CIDR，通常是平台内网）与加密数据源密码的 AES-256 密钥（Base64 的 32 字节）：

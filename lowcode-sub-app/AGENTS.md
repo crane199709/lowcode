@@ -10,6 +10,9 @@
 - 隔离约定：只在 `src/sub-app.ts` 导出相对路由；不创建 Vue 应用、Router、Pinia、i18n 实例；`<style>` 用 `scoped`；共享依赖只从根入口导入；接口经 `useTenantClient()` 调用，不读写 Shell 的 `forge.*` 会话存储。
 - 视觉用例放 `e2e/visual/`：在 `localStorage` 预置假会话，用 `page.route` mock 接口，覆盖接近真实长度的数据、空值与空列表。
 
+- 浏览器业务接口保留 `/lowcode/...` 服务路径，由 SDK 添加 `/api`，配套宿主剥离后代理到网关；不再配置 `apiPrefixes`。
+- Shell 与独立开发宿主拥有统一浅色主题，Sub-App 只读取 Theme Token，不自行调用 `applyTheme` 或写文档根节点。
+
 ## 命令
 
 - `pnpm dev`：独立开发宿主 `http://localhost:5176`，经代理访问本地网关

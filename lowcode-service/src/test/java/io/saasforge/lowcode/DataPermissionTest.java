@@ -89,7 +89,9 @@ class DataPermissionTest {
 
     @BeforeEach
     void eachMemberCreatesAScreenInTheirPrimaryDepartment() throws Exception {
-        if (seeded) return;
+        if (seeded) {
+            return;
+        }
         seeded = true;
         for (UUID member : NAMES.keySet()) {
             String token = publish(member, DEPARTMENTS.get(member), List.of(DataScope.ALL));
@@ -172,7 +174,9 @@ class DataPermissionTest {
                     var attributes = new HashMap<String, Object>();
                     attributes.put("ownerId", UUID.fromString((String) screen.get("ownerId")));
                     attributes.put("departmentPath", screen.get("departmentPath"));
-                    if (dataPermission.permits("screen", attributes)) inMemory.add(screen.get("id"));
+                    if (dataPermission.permits("screen", attributes)) {
+                        inMemory.add(screen.get("id"));
+                    }
                 }
             });
             assertThat(inMemory).as("%s %s", NAMES.get(c.member()), c.scopes()).isEqualTo(bySql);
@@ -208,7 +212,9 @@ class DataPermissionTest {
                     var attributes = new HashMap<String, Object>();
                     attributes.put("ownerId", UUID.fromString((String) screen.get("ownerId")));
                     attributes.put("departmentPath", screen.get("departmentPath"));
-                    if (dataPermission.permits("screen", attributes)) inMemory.add(screen.get("id"));
+                    if (dataPermission.permits("screen", attributes)) {
+                        inMemory.add(screen.get("id"));
+                    }
                 }
             });
             assertThat(inMemory).as("%s", subject).isEqualTo(bySql);
@@ -312,7 +318,9 @@ class DataPermissionTest {
                 .method(method)
                 .uri(uri)
                 .header("Authorization", "Bearer " + token);
-        if (body != null) request.contentType(MediaType.APPLICATION_JSON).body(body);
+        if (body != null) {
+            request.contentType(MediaType.APPLICATION_JSON).body(body);
+        }
         return request.exchange((req, response) -> {
             Map<String, Object> envelope = response.bodyTo(new ParameterizedTypeReference<Map<String, Object>>() {});
             assertThat(envelope.get("httpStatus"))

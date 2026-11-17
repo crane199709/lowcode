@@ -106,13 +106,13 @@ packages:
     engines: {node: ^22.18.0 || >=24.11.0}
 
   '@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz':
-    resolution: {integrity: sha512-vPx+OY+L5SH67uz/Tr1c8lCaHfFC9VXHyE5jgkvpgAThaleUzXOlVGufxhg9LxG2XY+WgcmRtVvMjCnLWIdcsQ==, tarball: file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz}
+    resolution: {integrity: sha512-oerudkAs0r816uWPWG8qR4miOKLqwkqVybbLE4d45AikCPPwUETk+qvS1VMihGpYqQR8sL1+J0GtFkZUk6/Q0w==, tarball: file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz}
     version: 0.2.0-SNAPSHOT
     peerDependencies:
       vue: ^3.5.44
 
   '@crane199709/sub-app-kit@file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz':
-    resolution: {integrity: sha512-6jzJ8g2krgeJTB5eLf0OnQbG2aQtE2tHopYDdqSQLgOB0aWxVZJjBOr69PxOwxMkkM4E5o9fu89SKEd+v5J/nw==, tarball: file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz}
+    resolution: {integrity: sha512-ltYVe2oefJFQJuheUtiYHTrD2knG1vaj8+aXmpZ21XYeycPY9EeMqLPT3jppMgF8Ly2LsOxalONlj+MQxAVUZw==, tarball: file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz}
     version: 0.2.0-SNAPSHOT
     hasBin: true
     peerDependencies:
@@ -130,7 +130,7 @@ packages:
       vue-router: 5.4.0
 
   '@crane199709/ui@file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz':
-    resolution: {integrity: sha512-luMcc9oPcyudHhN0LS2YZQCzFrCbD6O8c/Ds1lbaSNCVlDUcXHw23gIn9b7pBwPB1Cqbebv0QUDci3jQaCM/jQ==, tarball: file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz}
+    resolution: {integrity: sha512-vlMH7MKgaQDXQwAaPJiWozniU+WY/FyDsWhcY81XxV7CCDi5aKiGb8XOnnTszEpUf9jBht1OZmqTDa//rc5XeQ==, tarball: file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz}
     version: 0.2.0-SNAPSHOT
     peerDependencies:
       '@crane199709/sdk': 0.2.0-SNAPSHOT
@@ -1078,6 +1078,7 @@ snapshots:
   '@crane199709/ui@file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz(@crane199709/sdk@file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3)))(element-plus@2.14.7(vue@3.5.44(typescript@5.9.3)))(vue-i18n@11.4.16(vue@3.5.44(typescript@5.9.3)))(vue@3.5.44(typescript@5.9.3))':
     dependencies:
       '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz(vue@3.5.44(typescript@5.9.3))
+      '@element-plus/icons-vue': 2.3.2(vue@3.5.44(typescript@5.9.3))
       element-plus: 2.14.7(vue@3.5.44(typescript@5.9.3))
       vue: 3.5.44(typescript@5.9.3)
       vue-i18n: 11.4.16(vue@3.5.44(typescript@5.9.3))

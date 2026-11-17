@@ -18,7 +18,7 @@ const dataset = {
 }
 async function mock(page: Page) {
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/datasets'),
+    (url) => url.pathname.startsWith('/api/lowcode/datasets'),
     async (route) => {
       const path = new URL(route.request().url()).pathname
       const method = route.request().method()
@@ -47,7 +47,7 @@ async function mock(page: Page) {
             },
           },
         })
-      } else if (method === 'GET' && path === '/lowcode/datasets') {
+      } else if (method === 'GET' && path === '/api/lowcode/datasets') {
         await route.fulfill({
           json: {
             code: 'ok',
@@ -96,7 +96,8 @@ for (const [label, width, height] of viewports) {
       await drawer.getByLabel('amount 显示名').fill('成交金额')
       const saved = page.waitForRequest(
         (request) =>
-          request.method() === 'POST' && new URL(request.url()).pathname === '/lowcode/datasets',
+          request.method() === 'POST' &&
+          new URL(request.url()).pathname === '/api/lowcode/datasets',
       )
       await drawer.getByRole('button', { name: '保存', exact: true }).click()
       expect((await saved).postDataJSON().fields[1]).toMatchObject({

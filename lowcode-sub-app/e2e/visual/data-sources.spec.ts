@@ -88,7 +88,7 @@ const items = [
 
 async function mockList(page: Page, data: typeof items) {
   await page.route(
-    (url) => url.pathname === '/lowcode/data-sources',
+    (url) => url.pathname === '/api/lowcode/data-sources',
     (route) =>
       route.fulfill({
         json: {
@@ -243,7 +243,7 @@ for (const [label, width, height] of viewports) {
     test('切换类型后测试连接和保存只提交当前类型的参数', async ({ page }) => {
       await mockList(page, items)
       const requests: { method: string; body: unknown }[] = []
-      const sourcePath = `/lowcode/data-sources/${items[0]!.id}`
+      const sourcePath = `/api/lowcode/data-sources/${items[0]!.id}`
       await page.route(
         (url) => url.pathname === sourcePath || url.pathname === `${sourcePath}/connection-test`,
         (route) => {

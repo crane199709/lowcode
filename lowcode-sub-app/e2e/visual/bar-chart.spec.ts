@@ -41,11 +41,11 @@ async function mock(page: Page, definition = draft, date = false) {
   const queries: unknown[] = []
   const saves: unknown[] = []
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/screens'),
+    (url) => url.pathname.startsWith('/api/lowcode/screens'),
     async (route) => {
       const path = new URL(route.request().url()).pathname
       let data: unknown = definition
-      if (path === '/lowcode/screens') data = []
+      if (path === '/api/lowcode/screens') data = []
       else if (path.endsWith('/datasets'))
         data = [
           {

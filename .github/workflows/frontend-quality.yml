@@ -42,7 +42,7 @@ jobs:
       - name: Check frontend formatting
         run: pnpm format:check
       - name: Check documentation and workflow formatting
-        run: pnpm exec prettier --check ../README.md ../README-en.md ../docs/ci.md ../.github/workflows/*.yml
+        run: pnpm exec prettier --check ../README.md ../README-en.md ../docs/ci.md ../docs/platform-upgrade.md ../.github/workflows/*.yml
       - name: Build and check isolation, styles, and types
         run: pnpm build
       - name: Install Chromium

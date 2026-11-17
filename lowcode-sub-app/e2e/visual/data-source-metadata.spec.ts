@@ -42,7 +42,7 @@ const failed = (route: Route) =>
   })
 async function setup(page: Page) {
   await page.route(
-    (url) => url.pathname === '/lowcode/data-sources',
+    (url) => url.pathname === '/api/lowcode/data-sources',
     (route) =>
       route.fulfill({
         json: {

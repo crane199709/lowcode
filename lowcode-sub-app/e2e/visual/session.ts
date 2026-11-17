@@ -22,7 +22,7 @@ export async function open(page: Page, path: string, permissions: string[] = [])
     ),
   )
   await page.route(
-    (url) => url.pathname.startsWith('/iam/'),
+    (url) => url.pathname.startsWith('/api/iam/'),
     (route) =>
       route.fulfill({
         json: {

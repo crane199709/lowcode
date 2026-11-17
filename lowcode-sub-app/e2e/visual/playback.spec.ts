@@ -68,7 +68,7 @@ const published = {
 }
 async function mock(page: Page) {
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/screens'),
+    (url) => url.pathname.startsWith('/api/lowcode/screens'),
     (route) => {
       const path = new URL(route.request().url()).pathname
       if (path.endsWith('/published') || path.endsWith('/publish'))
@@ -138,7 +138,7 @@ test('未发布或无数据范围时只展示错误，不回退读取草稿；�
   let draftRequests = 0
   let publishedRequests = 0
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/screens'),
+    (url) => url.pathname.startsWith('/api/lowcode/screens'),
     async (route) => {
       const path = new URL(route.request().url()).pathname
       if (path.endsWith('/draft')) draftRequests++

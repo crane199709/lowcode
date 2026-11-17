@@ -260,9 +260,6 @@ def start(svc, port, probe):
         'FORGE_REDIS_HOST': '127.0.0.1',
         'FORGE_REDIS_PORT': '16379',
         'FORGE_ROCKETMQ_ENDPOINTS': '127.0.0.1:18081',
-        'FORGE_IAM_OPS_TOKEN': C['iamOps'],
-        'FORGE_PLATFORM_OPS_TOKEN': C['platformOps'],
-        'FORGE_DEMO_OPS_TOKEN': C['demoOps'],
         'FORGE_LOWCODE_MANIFEST_TOKEN': C['lowcodeManifest'],
         'FORGE_PLATFORM_MANIFEST_TOKEN': C['platformManifest'],
         'FORGE_DEMO_MANIFEST_TOKEN': C['demoManifest'],
@@ -286,9 +283,16 @@ def start(svc, port, probe):
         'FORGE_STORAGE_SECRET_KEY': C['s3Secret'],
         'SPRING_CONFIG_IMPORT': 'nacos:forge-common.yaml?group=DEFAULT_GROUP&preference=remote'+(',nacos:forge-gateway.yaml?group=DEFAULT_GROUP&preference=remote' if key=='gateway' else ''),
     }
-    if key != 'lowcode':
-        env.pop('FORGE_MANIFEST_TOKEN')
+    # 统一配置键按进程注入；各服务仍持有本轮各自独立的凭据。
+    env['FORGE_BUSINESS_ZONE'] = 'Asia/Shanghai'
+    if key in ['iam', 'platform', 'lowcode']:
+        env['FORGE_OPS_TOKEN'] = C[key + 'Ops']
+    else:
         env.pop('FORGE_OPS_TOKEN')
+    if key in ['platform', 'lowcode']:
+        env['FORGE_MANIFEST_TOKEN'] = C[key + 'Manifest']
+    else:
+        env.pop('FORGE_MANIFEST_TOKEN')
     for name in ['iam','platform']:
         env[f'FORGE_{name.upper()}_DB_PASSWORD']=C[name+'App']
         env[f'FORGE_{name.upper()}_DB_MIGRATOR_PASSWORD']=C[name+'Migrator']
@@ -376,7 +380,8 @@ try:
         while True: time.sleep(1)
     env={**os.environ,'LOWCODE_E2E_RUN_DIR':str(RUN),'LOWCODE_PLATFORM_ROOT':str(PLATFORM)}
     command(['pnpm','exec','playwright','test','-c','e2e/platform/playwright.config.ts'],'playwright.log',env=env,cwd=ROOT/'lowcode-sub-app')
-    print('真实平台链路通过',flush=True)
+    command(['pnpm','exec','playwright','test','-c','e2e/platform/playwright.dev-host.config.ts'],'playwright-dev-host.log',env=env,cwd=ROOT/'lowcode-sub-app')
+    print('真实平台链路与独立开发宿主通过',flush=True)
 except Exception as error:
     print(str(error),flush=True)
     raise SystemExit(1)

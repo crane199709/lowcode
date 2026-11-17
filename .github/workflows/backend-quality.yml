@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: crane199709/saas-forge
-          ref: 3f5ea01d10e18a907914ff82a9f71b3082fe05bf
+          ref: 54115992e00691be57b912e46593709c77c344a1
           path: .ci/saas-forge
           persist-credentials: false
       - name: Set up Java

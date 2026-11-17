@@ -14,11 +14,11 @@ const permissions = ['screen:view', 'screen:edit']
 async function mock(page: Page, items: unknown[] = [initial]) {
   let screen = structuredClone(initial)
   await page.route(
-    (url) => url.pathname.startsWith('/lowcode/screens'),
+    (url) => url.pathname.startsWith('/api/lowcode/screens'),
     async (route) => {
       const path = new URL(route.request().url()).pathname
       const method = route.request().method()
-      if (method === 'GET' && path === '/lowcode/screens') {
+      if (method === 'GET' && path === '/api/lowcode/screens') {
         await route.fulfill({
           json: {
             code: 'ok',
@@ -37,7 +37,7 @@ async function mock(page: Page, items: unknown[] = [initial]) {
       } else {
         if (method === 'PUT' && path.endsWith('/draft'))
           screen.draft = route.request().postDataJSON()
-        if (method === 'POST' && path === '/lowcode/screens')
+        if (method === 'POST' && path === '/api/lowcode/screens')
           screen = { ...screen, ...route.request().postDataJSON() }
         await route.fulfill({
           json: {
@@ -126,7 +126,7 @@ for (const [label, width, height] of [
       await dialog.getByLabel('画布高度').fill('900')
       const created = page.waitForRequest(
         (request) =>
-          request.method() === 'POST' && new URL(request.url()).pathname === '/lowcode/screens',
+          request.method() === 'POST' && new URL(request.url()).pathname === '/api/lowcode/screens',
       )
       await dialog.getByRole('button', { name: '创建并编辑', exact: true }).click()
       expect((await created).postDataJSON()).toMatchObject({

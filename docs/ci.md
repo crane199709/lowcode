@@ -11,9 +11,11 @@
 
 ## Forge snapshot 依赖
 
-本仓库依赖 `0.2.0-SNAPSHOT`。当前后端工作流从 SaaS Forge 的固定提交 [`3f5ea01d10e18a907914ff82a9f71b3082fe05bf`](https://github.com/crane199709/saas-forge/commit/3f5ea01d10e18a907914ff82a9f71b3082fe05bf) 构建所需 SDK 和架构检查制品，再运行 lowcode 测试。前端直接使用随仓库提交的 `.forge-packages/` tarball。两者均不要求额外配置包仓库密钥。
+本仓库依赖 `0.2.0-SNAPSHOT`。当前后端工作流从 SaaS Forge 的固定提交 [`54115992e00691be57b912e46593709c77c344a1`](https://github.com/crane199709/saas-forge/commit/54115992e00691be57b912e46593709c77c344a1) 构建所需 SDK 和架构检查制品，再运行 lowcode 测试。前端直接使用随仓库提交的 `.forge-packages/` tarball。两者均不要求额外配置包仓库密钥。
 
-升级平台时，同步更新后端工作流的源码提交、`lowcode-service/pom.xml`、前端依赖及 snapshot tarball，确认与实际 Shell 的共享版本匹配。采用正式发布的 Maven 制品后，可按平台接入指南切换依赖获取方式。
+这次升级固定候选 `54115992`，本地后端隔离验收消费候选实际 Maven 制品；CI 保留从相同固定提交重建 SDK 的模式。前端三份 tarball 直接来自同一候选的 `pnpm pack`，摘要与复现步骤见 [平台升级记录](platform-upgrade.md)。
+
+升级平台时，同步核对后端工作流的源码提交、`lowcode-service/pom.xml`、前端依赖、tarball 摘要和锁文件，确认与实际 Shell 的共享版本匹配。同为 `0.2.0-SNAPSHOT` 不代表内容相同。目标版本制品发布后，再按平台接入指南切换依赖获取方式；不能先删除本地覆盖导致 CI 引用不存在的快照。
 
 ## 测试范围
 
@@ -37,7 +39,7 @@ cd lowcode-service
 cd lowcode-sub-app
 pnpm install --frozen-lockfile
 pnpm format:check
-pnpm exec prettier --check ../README.md ../README-en.md ../docs/ci.md ../.github/workflows/*.yml
+pnpm exec prettier --check ../README.md ../README-en.md ../docs/ci.md ../docs/platform-upgrade.md ../.github/workflows/*.yml
 pnpm build
 pnpm exec playwright install --with-deps chromium
 pnpm test:visual --forbid-only --ignore-snapshots --trace=retain-on-failure --reporter=line,html

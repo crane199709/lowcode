@@ -17,7 +17,7 @@ for (const [label, width, height] of viewports) {
   test(`数据集引用包含隐藏范围提示 ${label}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     await page.route(
-      (url) => url.pathname.startsWith('/lowcode/datasets'),
+      (url) => url.pathname.startsWith('/api/lowcode/datasets'),
       (route) =>
         route.fulfill({
           json: {
@@ -52,7 +52,7 @@ for (const [label, width, height] of viewports) {
     await page.setViewportSize({ width, height })
     let deletes = 0
     await page.route(
-      (url) => url.pathname.startsWith('/lowcode/datasets'),
+      (url) => url.pathname.startsWith('/api/lowcode/datasets'),
       (route) => {
         const path = new URL(route.request().url()).pathname
         if (route.request().method() === 'DELETE') {
@@ -95,7 +95,7 @@ for (const [label, width, height] of viewports) {
   test(`无引用资源取消和删除 ${label}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     let deleted = false
-    await page.route('**/lowcode/data-sources**', (route) => {
+    await page.route('**/api/lowcode/data-sources**', (route) => {
       if (route.request().method() === 'DELETE') {
         deleted = true
         return route.fulfill({ json: { code: 'ok', httpStatus: 200 } })
@@ -137,7 +137,7 @@ for (const [label, width, height] of viewports) {
   test(`数据源删除确认展示引用 ${label}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     let deletes = 0
-    await page.route('**/lowcode/data-sources**', (route) => {
+    await page.route('**/api/lowcode/data-sources**', (route) => {
       const path = new URL(route.request().url()).pathname
       if (path.endsWith('/references'))
         return route.fulfill({

@@ -11,7 +11,7 @@ for (const [label, width, height] of viewports) {
         if (['warning', 'error'].includes(message.type())) errors.push(message.text())
       })
       await page.route(
-        (url) => url.pathname === '/lowcode/data-sources',
+        (url) => url.pathname === '/api/lowcode/data-sources',
         (route) =>
           route.fulfill({
             json: {
@@ -43,7 +43,7 @@ for (const [label, width, height] of viewports) {
       await page.getByRole('option', { name: '加密', exact: true }).click()
       await expect(page).toHaveScreenshot(`datasources-create-clickhouse-${label}.png`)
       await page.route(
-        (url) => url.pathname === '/lowcode/data-sources/connection-test',
+        (url) => url.pathname === '/api/lowcode/data-sources/connection-test',
         async (route) => {
           expect(route.request().postDataJSON()).toMatchObject({
             type: 'CLICKHOUSE',
@@ -55,7 +55,7 @@ for (const [label, width, height] of viewports) {
       await drawer.getByRole('button', { name: '测试连接' }).click()
       await expect(drawer.getByText('连接成功', { exact: true })).toBeVisible()
       await page.route(
-        (url) => url.pathname === '/lowcode/data-sources' && url.search === '',
+        (url) => url.pathname === '/api/lowcode/data-sources' && url.search === '',
         async (route) => {
           if (route.request().method() === 'POST') {
             expect(route.request().postDataJSON()).toMatchObject({
