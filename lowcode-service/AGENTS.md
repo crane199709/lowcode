@@ -1,6 +1,6 @@
 # AGENTS.md
 
-基于 SaaS Forge 平台的 Business Service，由 `forge-service-archetype` 生成。适用平台版本：0.2.0-SNAPSHOT。
+基于 SaaS Forge 平台的 Business Service，由 `forge-service-archetype` 生成。适用平台版本：0.2.0。
 
 ## 编码规范
 
@@ -40,4 +40,4 @@
 
 storage 依赖同时启用 audit 与 scheduling；调度配置引用已有 IAM 地址和服务凭据。已有库只通过新增增量迁移补齐结构，不修改已执行迁移。
 
-升级平台版本时按平台 CHANGELOG 的升级说明跟进：通用规范有改动时，用新版本 archetype 生成一个工程，从中复制 `docs/standards/` 覆盖本工程的副本，并更新本文件的适用版本。
+升级至 0.2.0 时先读[集中升级清单](https://github.com/crane199709/saas-forge/blob/main/docs/upgrading-v020.md)，保留业务代码、自定义配置和已执行迁移；按平台 CHANGELOG 的升级说明跟进：通用规范有改动时，用新版本 archetype 生成一个工程，从中复制 `docs/standards/` 覆盖本工程的副本，并更新本文件的适用版本。

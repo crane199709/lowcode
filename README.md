@@ -27,13 +27,13 @@ flowchart LR
 
 服务注册与配置使用平台的 Nacos。平台数据库中的服务 schema 保存低代码业务数据；租户登记的外部数据库与 API 是大屏查询的数据来源，两者用途不同。
 
-| 接入标识                   | 当前值                                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------- |
-| 后端服务注册名             | `lowcode-service`                                                                                       |
-| 网关前缀与 Realm           | `/lowcode`，Tenant Realm                                                                                |
-| Sub-App 编码与路由         | `lowcode`，挂载在 `/apps/lowcode`                                                                       |
-| 联邦模块与构建入口         | `./sub-app`，`dist/remoteEntry.js`                                                                      |
-| Forge BOM / 前端工具包版本 | `0.2.0-SNAPSHOT`，见 [pom.xml](lowcode-service/pom.xml) 与 [package.json](lowcode-sub-app/package.json) |
+| 接入标识                   | 当前值                                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------------------- |
+| 后端服务注册名             | `lowcode-service`                                                                              |
+| 网关前缀与 Realm           | `/lowcode`，Tenant Realm                                                                       |
+| Sub-App 编码与路由         | `lowcode`，挂载在 `/apps/lowcode`                                                              |
+| 联邦模块与构建入口         | `./sub-app`，`dist/remoteEntry.js`                                                             |
+| Forge BOM / 前端工具包版本 | `0.2.0`，见 [pom.xml](lowcode-service/pom.xml) 与 [package.json](lowcode-sub-app/package.json) |
 
 本项目同时用于验证 SaaS Forge 的脚手架、SDK 和接入指南能否承载真实业务。本仓库的业务规格与工单位于 [`.scratch/lowcode-v1/`](.scratch/lowcode-v1/spec.md)；平台能力的问题反馈到 SaaS Forge 仓库的 `.scratch/lowcode-validation/issues/`。
 
@@ -75,7 +75,7 @@ GLOSSARY.md               业务术语
 
 需要 JDK 17、Node.js 24+、pnpm 12；后端使用自带 Maven Wrapper。集成测试需要 Docker，浏览器测试需要 Playwright Chromium。
 
-先按 [SaaS Forge 本地启动说明](https://github.com/crane199709/saas-forge#本地启动)准备平台服务和 PostgreSQL、Redis、Nacos、RocketMQ、S3 兼容存储。构建后端前，Maven 仓库须能解析 `io.saasforge:*:0.2.0-SNAPSHOT`；使用匹配的平台源码时，可在其 `backend/` 目录执行 `./mvnw install -DskipTests` 安装本地制品。本文命令除特别说明外从本仓库根目录开始。
+先按 [SaaS Forge 本地启动说明](https://github.com/crane199709/saas-forge#本地启动)准备平台服务和 PostgreSQL、Redis、Nacos、RocketMQ、S3 兼容存储。构建后端前，Maven 仓库须能解析 `io.saasforge:*:0.2.0`；使用匹配的平台源码时，可在其 `backend/` 目录执行 `./mvnw install -DskipTests` 安装本地制品。本文命令除特别说明外从本仓库根目录开始。
 
 ### 2. 配置并启动后端
 

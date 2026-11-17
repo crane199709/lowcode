@@ -248,7 +248,7 @@ write('application.yml', base)
 
 def start(svc, port, probe):
     key = 'lowcode' if svc=='lowcode-service' else svc.removeprefix('forge-')
-    jar = ROOT/'lowcode-service/target/lowcode-service-1.0.0-SNAPSHOT.jar' if key=='lowcode' else PLATFORM/f'backend/{svc}/target/{svc}-0.2.0-SNAPSHOT.jar'
+    jar = ROOT/'lowcode-service/target/lowcode-service-1.0.0-SNAPSHOT.jar' if key=='lowcode' else PLATFORM/f'backend/{svc}/target/{svc}-0.2.0.jar'
     for folder in ['java-home','nacos-cache','nacos-logs']:
         (RUN/folder/svc).mkdir(parents=True)
     env = {

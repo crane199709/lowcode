@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本工程是 SaaS Forge 平台的 Sub-App `lowcode`（平台版本 0.2.0-SNAPSHOT）：构建产物 `dist/remoteEntry.js` 由租户 Shell 经 Module Federation 加载，路由挂在 `/apps/lowcode` 下。
+本工程是 SaaS Forge 平台的 Sub-App `lowcode`（平台版本 0.2.0）：构建产物 `dist/remoteEntry.js` 由租户 Shell 经 Module Federation 加载，路由挂在 `/apps/lowcode` 下。
 
 ## 规则摘要
 
@@ -28,3 +28,7 @@
 ## 规范
 
 - [docs/standards/sub-app.md](docs/standards/sub-app.md)：页面流程、原型、组件、交互、样式与走查清单。文件随平台版本复制，不在本工程修改；平台升级时按 CHANGELOG 重新复制。
+
+## 平台版本升级
+
+升级至 0.2.0 时先读[集中升级清单](https://github.com/crane199709/saas-forge/blob/main/docs/upgrading-v020.md)，按同版本参考工程合并三包、配置和规范差异，保留业务源码、路由与自定义项；业务版本和 Resource Manifest 版本分别维护。

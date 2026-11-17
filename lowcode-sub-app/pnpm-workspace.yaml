@@ -1,6 +1,6 @@
-# 临时：消费固定候选 54115992 的实际 pack 制品，来源与摘要见 docs/platform-upgrade.md。
+# 临时：消费固定候选 9f61c8a0 的实际 pack 制品，来源与摘要见 docs/platform-upgrade.md。
 # 平台发布新版本后删除本文件的 overrides。
 overrides:
-  '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0-SNAPSHOT.tgz
-  '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.2.0-SNAPSHOT.tgz
-  '@crane199709/sub-app-kit': file:../.forge-packages/crane199709-sub-app-kit-0.2.0-SNAPSHOT.tgz
+  '@crane199709/sdk': file:../.forge-packages/crane199709-sdk-0.2.0.tgz
+  '@crane199709/ui': file:../.forge-packages/crane199709-ui-0.2.0.tgz
+  '@crane199709/sub-app-kit': file:../.forge-packages/crane199709-sub-app-kit-0.2.0.tgz

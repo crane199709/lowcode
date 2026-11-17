@@ -9,13 +9,13 @@
 
 报告和构建产物保留 7 天。后端使用 Maven 缓存，前端使用 pnpm store 缓存；安装仍使用 lockfile，不缓存 `node_modules`。
 
-## Forge snapshot 依赖
+## Forge 候选依赖
 
-本仓库依赖 `0.2.0-SNAPSHOT`。当前后端工作流从 SaaS Forge 的固定提交 [`54115992e00691be57b912e46593709c77c344a1`](https://github.com/crane199709/saas-forge/commit/54115992e00691be57b912e46593709c77c344a1) 构建所需 SDK 和架构检查制品，再运行 lowcode 测试。前端直接使用随仓库提交的 `.forge-packages/` tarball。两者均不要求额外配置包仓库密钥。
+本仓库依赖待发布的 `0.2.0` 候选，实际候选源码为 `9f61c8a0073c82a900abeff45ce21c5600b6afb3`。后端 CI checkout 它的精确直接父实现 [`98060f84421179b41b7e96cf123da8e41ba720a8`](https://github.com/crane199709/saas-forge/commit/98060f84421179b41b7e96cf123da8e41ba720a8)，然后在平台根目录执行既有 `version.py set 0.2.0` 和 `version.py check v0.2.0`，再构建所需 SDK 与架构检查制品。已在干净导出中证明该固定变换所得完整 Git tree 与候选源码完全一致，避免要求额外推送独立版本候选分支或标签。
 
-这次升级固定候选 `54115992`，本地后端隔离验收消费候选实际 Maven 制品；CI 保留从相同固定提交重建 SDK 的模式。前端三份 tarball 直接来自同一候选的 `pnpm pack`，摘要与复现步骤见 [平台升级记录](platform-upgrade.md)。
+本地后端验收消费候选实际 Maven 制品；CI 使用上述固定来源重建等价源码，不将两者混称为制品下载。前端三份 tarball 则直接来自同一候选的原始 `pnpm pack`，不要求额外配置包仓库密钥；摘要与复现步骤见 [平台升级记录](platform-upgrade.md)。
 
-升级平台时，同步核对后端工作流的源码提交、`lowcode-service/pom.xml`、前端依赖、tarball 摘要和锁文件，确认与实际 Shell 的共享版本匹配。同为 `0.2.0-SNAPSHOT` 不代表内容相同。目标版本制品发布后，再按平台接入指南切换依赖获取方式；不能先删除本地覆盖导致 CI 引用不存在的快照。
+升级平台时，同步核对后端工作流的源码提交、`lowcode-service/pom.xml`、前端依赖、tarball 摘要和锁文件，确认与实际 Shell 的共享版本匹配，并按候选清单核对实际内容。目标版本制品发布后，再按平台接入指南切换依赖获取方式；当前保留本地覆盖，确保前端安装使用随仓库提交的实际候选。
 
 ## 测试范围
 

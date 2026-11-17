@@ -27,13 +27,13 @@ flowchart LR
 
 Service discovery and configuration use the platform's Nacos instance. The service schema in PostgreSQL stores the application's own business data; tenant databases and APIs provide the data queried for screens.
 
-| Integration identifier               | Current value                                                                                             |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| Backend service name                 | `lowcode-service`                                                                                         |
-| Gateway prefix and Realm             | `/lowcode`, Tenant Realm                                                                                  |
-| Sub-App code and route               | `lowcode`, mounted at `/apps/lowcode`                                                                     |
-| Federated module and build entry     | `./sub-app`, `dist/remoteEntry.js`                                                                        |
-| Forge BOM / frontend tooling version | `0.2.0-SNAPSHOT`; see [pom.xml](lowcode-service/pom.xml) and [package.json](lowcode-sub-app/package.json) |
+| Integration identifier               | Current value                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Backend service name                 | `lowcode-service`                                                                                |
+| Gateway prefix and Realm             | `/lowcode`, Tenant Realm                                                                         |
+| Sub-App code and route               | `lowcode`, mounted at `/apps/lowcode`                                                            |
+| Federated module and build entry     | `./sub-app`, `dist/remoteEntry.js`                                                               |
+| Forge BOM / frontend tooling version | `0.2.0`; see [pom.xml](lowcode-service/pom.xml) and [package.json](lowcode-sub-app/package.json) |
 
 This project also validates SaaS Forge's scaffolding, SDK, and onboarding documentation against a real application. Application specifications and issues live in [`.scratch/lowcode-v1/`](.scratch/lowcode-v1/spec.md); platform issues are tracked in `.scratch/lowcode-validation/issues/` in the SaaS Forge repository.
 
@@ -75,7 +75,7 @@ GLOSSARY.md               Domain terminology
 
 Use JDK 17, Node.js 24+, and pnpm 12. The backend includes Maven Wrapper. Integration tests require Docker; browser tests require Playwright Chromium.
 
-Follow the [SaaS Forge local setup](https://github.com/crane199709/saas-forge#本地启动) to prepare platform services, PostgreSQL, Redis, Nacos, RocketMQ, and S3-compatible storage. Before building the backend, make sure Maven can resolve `io.saasforge:*:0.2.0-SNAPSHOT`. With matching platform source, run `./mvnw install -DskipTests` in its `backend/` directory to install local artifacts. Unless stated otherwise, commands below start at this repository's root.
+Follow the [SaaS Forge local setup](https://github.com/crane199709/saas-forge#本地启动) to prepare platform services, PostgreSQL, Redis, Nacos, RocketMQ, and S3-compatible storage. Before building the backend, make sure Maven can resolve `io.saasforge:*:0.2.0`. With matching platform source, run `./mvnw install -DskipTests` in its `backend/` directory to install local artifacts. Unless stated otherwise, commands below start at this repository's root.
 
 ### 2. Configure and start the backend
 
